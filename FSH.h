@@ -1,7 +1,7 @@
 #ifndef FSH_h
 #define FSH_h
 #include <Arduino.h>
-#if defined(ARDUINO_ARCH_MEGAAVR)
+#ifdef ARDUINO_ARCH_MEGAAVR
 typedef char FSH; 
 #define GETFLASH(addr) (*(const unsigned char *)(addr))
 #define FLASH

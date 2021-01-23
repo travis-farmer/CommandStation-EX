@@ -29,6 +29,11 @@
                               new MotorDriver(3, 12, UNUSED_PIN, UNUSED_PIN, A0, 2.99, 2000, UNUSED_PIN), \
                               new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
 
+// SEEED Motor Shield v2.0
+#define SEEED_MOTOR_SHIELD F("SEEED_MOTOR_SHIELD"),                                                 \
+                              new MotorDriver(9, 8, 11, UNUSED_PIN, A0, 2.99, 2000, UNUSED_PIN), \
+                              new MotorDriver(10, 12, 13, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
+
 // Pololu Motor Shield
 #define POLOLU_MOTOR_SHIELD F("POLOLU_MOTOR_SHIELD"),                                                 \
                             new MotorDriver( 9, 7, UNUSED_PIN,         -4, A0, 18, 3000,         12), \
