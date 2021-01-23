@@ -83,7 +83,7 @@ nona4809.menu.clock.20internal.bootloader.OSCCFG=0x02
 #else
 #include "WProgram.h"
 #endif
-#include "MegaAvr20MHz.h"
+#include "MegaAvr20Mhz.h"
 #include "pins_arduino.h"
 
 #define TCB_RESOLUTION 65536UL // TCB is 16 bit
@@ -228,7 +228,7 @@ class EveryTimerB
       timer->CTRLA |= TCB_ENABLE_bm;
     }
 
-    bool disable(void) __attribute__((always_inline)) {
+    void disable(void) __attribute__((always_inline)) {
       timer->CTRLA &= ~TCB_ENABLE_bm;
     }
 
@@ -270,11 +270,11 @@ class EveryTimerB
       return timer->CTRLB & TCB_CCMPEN_bm;
     }
 
-    uint8_t enableOutput() __attribute__((always_inline)) {
+    void enableOutput() __attribute__((always_inline)) {
       timer->CTRLB |= TCB_CCMPEN_bm;
     }
 
-    uint8_t disableOutput() __attribute__((always_inline)) {
+    void disableOutput() __attribute__((always_inline)) {
       timer->CTRLB &= ~TCB_CCMPEN_bm;
     }
 
