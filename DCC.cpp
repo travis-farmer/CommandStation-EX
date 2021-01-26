@@ -23,6 +23,7 @@
 #include "EEStore.h"
 #include "GITHUB_SHA.h"
 #include "version.h"
+#include "FSH.h"
 
 // This module is responsible for converting API calls into
 // messages to be sent to the waveform generator.
@@ -45,15 +46,15 @@ const byte FN_GROUP_5=0x10;
 
 FSH* DCC::shieldName=NULL;
 
-void DCC::begin(const FSH* motorShieldName, MotorDriver * mainDriver, MotorDriver* progDriver, byte timerNumber) {
-  shieldName=(FSH*)motorShieldName;
+void DCC::begin(const FSH * motorShieldName, MotorDriver * mainDriver, MotorDriver* progDriver) {
+  shieldName=(FSH *)motorShieldName;
   DIAG(F("<iDCC-EX V-%S / %S / %S G-%S>\n"), F(VERSION), F(ARDUINO_TYPE), shieldName, F(GITHUB_SHA));
 
   // Load stuff from EEprom
   (void)EEPROM; // tell compiler not to warn this is unused
   EEStore::init();
 
-  DCCWaveform::begin(mainDriver,progDriver, timerNumber); 
+  DCCWaveform::begin(mainDriver,progDriver); 
 }
 
 void DCC::setThrottle( uint16_t cab, uint8_t tSpeed, bool tDirection)  {
@@ -399,7 +400,7 @@ const ackOp FLASH LOCO_ID_PROG[] = {
       FAIL
       };    
 
-const ackOp PROGMEM SHORT_LOCO_ID_PROG[] = {
+const ackOp FLASH SHORT_LOCO_ID_PROG[] = {
       BASELINE,
       SETCV,(ackOp)19,
       SETBYTE, (ackOp)0,
@@ -415,7 +416,7 @@ const ackOp PROGMEM SHORT_LOCO_ID_PROG[] = {
       FAIL
 };    
 
-const ackOp PROGMEM LONG_LOCO_ID_PROG[] = {
+const ackOp FLASH LONG_LOCO_ID_PROG[] = {
       BASELINE,
       // Clear consist CV 19
       SETCV,(ackOp)19,
@@ -481,7 +482,6 @@ void DCC::getLocoId(ACK_CALLBACK callback, bool blocking) {
 
 void DCC::setLocoId(int id,ACK_CALLBACK callback, bool blocking) {
   if (id<=0 || id>9999) callback(-1);
-  int wordval;
   if (id<=127) ackManagerSetup(id,SHORT_LOCO_ID_PROG, callback, blocking);
   else ackManagerSetup(id | 0xc000,LONG_LOCO_ID_PROG, callback, blocking);
 }
@@ -792,7 +792,7 @@ void DCC::ackManagerLoop(bool blocking) {
 
      case SETBYTE:
           ackManagerProg++; 
-          ackManagerByte=pgm_read_byte_near(ackManagerProg);
+          ackManagerByte=GETFLASH(ackManagerProg);
           break;
 
     case SETBYTEH:
