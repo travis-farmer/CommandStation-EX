@@ -47,15 +47,30 @@ void DCCWaveform::loop() {
 
 void DCCWaveform::interruptHandler() {
   // call the timer edge sensitive actions for progtrack and maintrack
-  bool mainCall2 = mainTrack.interrupt1();
-  bool progCall2 = progTrack.interrupt1();
+  // member functions would be cleaner but have more overhead
+  byte sigMain=signalTransform[mainTrack.state];
+  byte sigProg=progTrackSyncMain? sigMain : signalTransform[progTrack.state];
+  
+  // Set the signal state for both tracks
+  mainTrack.motorDriver->setSignal(sigMain);
+  progTrack.motorDriver->setSignal(sigProg);
+  
+  // Move on in the state engine
+  mainTrack.state=stateTransform[mainTrack.state];    
+  progTrack.state=stateTransform[progTrack.state];    
 
-  // call (if necessary) the procs to get the current bits
-  // these must complete within 50microsecs of the interrupt
-  // but they are only called ONCE PER BIT TRANSMITTED
-  // after the rising edge of the signal
-  if (mainCall2) mainTrack.interrupt2();
-  if (progCall2) progTrack.interrupt2();
+
+  // WAVE_PENDING means we dont yet know what the next bit is
+  // so we dont check cutrrent on this cycle
+  if (mainTrack.state!=WAVE_PENDING && progTrack.state!=WAVE_PENDING) {
+    mainTrack.lastCurrent=mainTrack.motorDriver->getCurrentRaw();
+    progTrack.lastCurrent=progTrack.motorDriver->getCurrentRaw();   
+  }
+
+  if (mainTrack.state==WAVE_PENDING) mainTrack.interrupt2();  
+  if (progTrack.state==WAVE_PENDING) progTrack.interrupt2();
+  else if (progTrack.ackPending) progTrack.checkAck();
+
 }
 
 
@@ -70,13 +85,12 @@ const byte bitMask[] = {0x00, 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01};
 
 
 DCCWaveform::DCCWaveform( byte preambleBits, bool isMain) {
-  // establish appropriate pins
   isMainTrack = isMain;
   packetPending = false;
   memcpy(transmitPacket, idlePacket, sizeof(idlePacket));
-  state = 0;
+  state = WAVE_START;
   // The +1 below is to allow the preamble generator to create the stop bit
-  // fpr the previous packet. 
+  // for the previous packet. 
   requiredPreambles = preambleBits+1;  
   bytes_sent = 0;
   bits_sent = 0;
@@ -112,7 +126,6 @@ void DCCWaveform::checkPowerOverload() {
       break;
     case POWERMODE::ON:
       // Check current
-      lastCurrent = motorDriver->getCurrentRaw();
       if (lastCurrent <= tripValue) {
         sampleDelay = POWER_SAMPLE_ON_WAIT;
 	if(power_good_counter<100)
@@ -141,68 +154,38 @@ void DCCWaveform::checkPowerOverload() {
       sampleDelay = 999; // cant get here..meaningless statement to avoid compiler warning.
   }
 }
+// For each state of the wave  nextState=stateTransform[currentState] 
+const WAVE_STATE DCCWaveform::stateTransform[]={
+   /* WAVE_START   -> */ WAVE_PENDING,
+   /* WAVE_MID_1   -> */ WAVE_START,
+   /* WAVE_HIGH_0  -> */ WAVE_MID_0,
+   /* WAVE_MID_0   -> */ WAVE_LOW_0,
+   /* WAVE_LOW_0   -> */ WAVE_START,
+   /* WAVE_PENDING (should not happen) -> */ WAVE_PENDING};
 
-// process time-edge sensitive part of interrupt
-// return true if second level required
-bool DCCWaveform::interrupt1() {
-  // NOTE: this must consume transmission buffers even if the power is off
-  // otherwise can cause hangs in main loop waiting for the pendingBuffer.
-  switch (state) {
-    case 0:  // start of bit transmission
-      setSignal(HIGH);
-      state = 1;
-      return true; // must call interrupt2 to set currentBit
-
-    case 1:  // 58us after case 0
-      if (currentBit) {
-        setSignal(LOW);
-        state = 0;
-      }
-      else  {
-        setSignal(HIGH);  // jitter prevention
-        state = 2;
-      }
-      break;
-    case 2:  // 116us after case 0
-      setSignal(LOW);
-      state = 3;
-      break;
-    case 3:  // finished sending zero bit
-      setSignal(LOW);  // jitter prevention
-      state = 0;
-      break;
-  }
-
-  // ACK check is prog track only and will only be checked if 
-  // this is not case(0) which needs  relatively expensive packet change code to be called.
-  if (ackPending) checkAck();
-
-  return false;
-
-}
-
-void DCCWaveform::setSignal(bool high) {
-  if (progTrackSyncMain) {
-    if (!isMainTrack) return; // ignore PROG track waveform while in sync
-    // set both tracks to same signal
-    motorDriver->setSignal(high);
-    progTrack.motorDriver->setSignal(high);
-    return;     
-  }
-  motorDriver->setSignal(high);
-}
-      
+// For each state of the wave, signal pin is HIGH or LOW   
+const bool DCCWaveform::signalTransform[]={
+   /* WAVE_START   -> */ HIGH,
+   /* WAVE_MID_1   -> */ LOW,
+   /* WAVE_HIGH_0  -> */ HIGH,
+   /* WAVE_MID_0   -> */ LOW,
+   /* WAVE_LOW_0   -> */ LOW,
+   /* WAVE_PENDING (should not happen) -> */ LOW};
+        
 void DCCWaveform::interrupt2() {
-  // set currentBit to be the next bit to be sent.
+  // calculate the next bit to be sent:
+  // set state WAVE_MID_1  for a 1=bit
+  //        or WAVE_HIGH_0 for a 0 bit.
 
   if (remainingPreambles > 0 ) {
-    currentBit = true;
+    state=WAVE_MID_1;  // switch state to trigger LOW on next interrupt
     remainingPreambles--;
     return;
   }
 
+  // Wave has gone HIGH but what happens next depends on the bit to be transmitted
   // beware OF 9-BIT MASK  generating a zero to start each byte
-  currentBit = transmitPacket[bytes_sent] & bitMask[bits_sent];
+  state=(transmitPacket[bytes_sent] & bitMask[bits_sent])? WAVE_MID_1 : WAVE_HIGH_0; 
   bits_sent++;
 
   // If this is the last bit of a byte, prepare for the next byte
@@ -267,7 +250,7 @@ int DCCWaveform::getLastCurrent() {
 
 void DCCWaveform::setAckBaseline() {
       if (isMainTrack) return;
-      int baseline = motorDriver->getCurrentRaw();
+      int baseline = lastCurrent;
       ackThreshold= baseline + motorDriver->mA2raw(ackLimitmA);
       if (Diag::ACK) DIAG(F("\nACK baseline=%d/%dmA Threshold=%d/%dmA Duration: %dus <= pulse <= %dus"),
 			  baseline,motorDriver->raw2mA(baseline),
@@ -302,7 +285,6 @@ void DCCWaveform::checkAck() {
         return; 
     }
       
-    lastCurrent=motorDriver->getCurrentRaw();
     if (lastCurrent > ackMaxCurrent) ackMaxCurrent=lastCurrent;
     // An ACK is a pulse lasting between minAckPulseDuration and maxAckPulseDuration uSecs (refer @haba)
         
