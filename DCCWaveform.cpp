@@ -17,6 +17,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  */
+ #pragma GCC optimize ("-O3")
 #include <Arduino.h>
 
 #include "DCCWaveform.h"
@@ -38,6 +39,9 @@ void DCCWaveform::begin(MotorDriver * mainDriver, MotorDriver * progDriver) {
   progTripValue = progDriver->mA2raw(TRIP_CURRENT_PROG); // need only calculate once hence static
   mainTrack.setPowerMode(POWERMODE::OFF);      
   progTrack.setPowerMode(POWERMODE::OFF);
+  MotorDriver::usePWM= mainDriver->isPWMCapable() && progDriver->isPWMCapable();
+  if (MotorDriver::usePWM) DIAG(F("\nWaveform using PWM pins for accuracy."));
+  else  DIAG(F("\nWaveform accuracy limited by signal pin configuration."));
   DCCTimer::begin(DCCWaveform::interruptHandler);     
 }
 
@@ -119,6 +123,11 @@ void DCCWaveform::checkPowerOverload() {
     case POWERMODE::ON:
       // Check current
       lastCurrent=motorDriver->getCurrentRaw();
+      if (lastCurrent < 0) {
+	  // We have a fault pin condition to take care of
+	  DIAG(F("\n*** %S FAULT PIN ACTIVE TOGGLE POWER ON THIS OR BOTH TRACKS ***\n"), isMainTrack ? F("MAIN") : F("PROG"));
+	  lastCurrent = -lastCurrent;
+      }
       if (lastCurrent <= tripValue) {
         sampleDelay = POWER_SAMPLE_ON_WAIT;
 	if(power_good_counter<100)
@@ -129,9 +138,9 @@ void DCCWaveform::checkPowerOverload() {
         setPowerMode(POWERMODE::OVERLOAD);
         unsigned int mA=motorDriver->raw2mA(lastCurrent);
         unsigned int maxmA=motorDriver->raw2mA(tripValue);
-        DIAG(F("\n*** %S TRACK POWER OVERLOAD current=%d max=%d  offtime=%l ***\n"), isMainTrack ? F("MAIN") : F("PROG"), mA, maxmA, power_sample_overload_wait);
 	power_good_counter=0;
         sampleDelay = power_sample_overload_wait;
+        DIAG(F("\n*** %S TRACK POWER OVERLOAD current=%d max=%d  offtime=%d ***\n"), isMainTrack ? F("MAIN") : F("PROG"), mA, maxmA, sampleDelay);
 	if (power_sample_overload_wait >= 10000)
 	    power_sample_overload_wait = 10000;
 	else
@@ -142,6 +151,8 @@ void DCCWaveform::checkPowerOverload() {
       // Try setting it back on after the OVERLOAD_WAIT
       setPowerMode(POWERMODE::ON);
       sampleDelay = POWER_SAMPLE_ON_WAIT;
+      // Debug code....
+      DIAG(F("\n*** %S TRACK POWER RESET delay=%d ***\n"), isMainTrack ? F("MAIN") : F("PROG"), sampleDelay);
       break;
     default:
       sampleDelay = 999; // cant get here..meaningless statement to avoid compiler warning.
@@ -198,7 +209,10 @@ void DCCWaveform::interrupt2() {
       }
       else if (packetPending) {
         // Copy pending packet to transmit packet
-        for (int b = 0; b < pendingLength; b++) transmitPacket[b] = pendingPacket[b];
+        // a fixed length memcpy is faster than a variable length loop for these small lengths
+        // for (int b = 0; b < pendingLength; b++) transmitPacket[b] = pendingPacket[b];
+        memcpy( transmitPacket, pendingPacket, sizeof(pendingPacket));
+        
         transmitLength = pendingLength;
         transmitRepeats = pendingRepeats;
         packetPending = false;
@@ -223,7 +237,7 @@ void DCCWaveform::schedulePacket(const byte buffer[], byte byteCount, byte repea
   while (packetPending);
 
   byte checksum = 0;
-  for (int b = 0; b < byteCount; b++) {
+  for (byte b = 0; b < byteCount; b++) {
     checksum ^= buffer[b];
     pendingPacket[b] = buffer[b];
   }

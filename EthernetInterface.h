@@ -22,7 +22,12 @@
 
 #ifndef EthernetInterface_h
 #define EthernetInterface_h
-
+#if __has_include ( "config.h")
+  #include "config.h"
+#else
+  #warning config.h not found. Using defaults from config.example.h 
+  #include "config.example.h"
+#endif
 #include "DCCEXParser.h"
 #include <Arduino.h>
 #include <avr/pgmspace.h>
@@ -33,11 +38,7 @@
  * @brief Network Configuration
  * 
  */
-#ifndef MAC_ADDRESS
-#error define MAC_ADDRESS in config.h
-#endif
 
-#define LISTEN_PORT 2560                                        // default listen port for the server 
 #define MAX_ETH_BUFFER 512
 #define OUTBOUND_RING_SIZE 2048
 
