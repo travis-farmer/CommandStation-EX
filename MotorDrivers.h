@@ -49,8 +49,8 @@
                               new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
 
 // Pololu Motor Shield
-#define POLOLU_MOTOR_SHIELD F("POLOLU_MOTOR_SHIELD"),                                                 \
-                            new MotorDriver( 9, 7, UNUSED_PIN,         -4, A0, 18, 3000, 12), \
+#define POLOLU_MOTOR_SHIELD F("POLOLU_MOTOR_SHIELD"),                                \
+                            new MotorDriver(9, 7, UNUSED_PIN, -4, A0, 18, 3000, 12), \
                             new MotorDriver(10, 8, UNUSED_PIN, UNUSED_PIN, A1, 18, 3000, 12)
 //
 // Actually, on the Pololu MC33926 shield the enable lines are tied together on pin 4 and the
@@ -79,8 +79,13 @@
                          new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
 
 // IBT_2 Motor Board for Main and Arduino Motor Shield for Prog
-#define IBT_2_WITH_ARDUINO F("IBT_2_WITH_ARDUINO_SHIELD"),                                              \
-                         new MotorDriver(4, 5, 6, UNUSED_PIN, A5, 41.54, 5000, UNUSED_PIN), \
-                         new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
+#define IBT_2_WITH_ARDUINO F("IBT_2_WITH_ARDUINO_SHIELD"),                                    \
+                           new MotorDriver(4, 5, 6, UNUSED_PIN, A5, 41.54, 5000, UNUSED_PIN), \
+                           new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
 
 #endif
+
+#define SNOWBALL_CREEK_SHIELD F("SNOWBALL_CREEK_SHIELD"),  \ 
+        new MotorDriver(3, 12, UNUSED_PIN, 9, A0, 6.10, 5000, UNUSED_PIN), \      
+        new MotorDriver(11, 13, UNUSED_PIN, 8, A1, 0.49, 320, UNUSED_PIN)
+#define MOTOR_SHIELD_TYPE SNOWBALL_CREEK_SHIELD
