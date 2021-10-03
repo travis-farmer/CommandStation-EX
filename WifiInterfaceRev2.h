@@ -30,15 +30,60 @@ class WifiInterface
 {
 
 public:
-  static bool setup(long serial_link_speed,  // ignored 
-                          const FSH *wifiESSID,
-                          const FSH *wifiPassword,
-                          const FSH *hostname,
-                          const int port = 2560); // ignored
+  static bool setup(long serial_link_speed, // ignored
+                    const FSH *wifiESSID,
+                    const FSH *wifiPassword,
+                    const FSH *hostname,
+                    const int port = 2560); // ignored
   static void loop();
+
 private:
-   static WiFiServer server;
-   static bool connected;  
-   static RingStream * outboundRing;
+  static WifiInterface *singleton;
+
+  WifiInterface(long serial_link_speed,
+                const FSH *wifiESSID,
+                const FSH *wifiPassword,
+                const FSH *hostname,
+                const int port);
+
+  enum INBOUND_STATE : byte
+  {
+    INBOUND_BUSY, // keep calling in loop()
+    INBOUND_IDLE  // Nothing happening, outbound may xcall CIPSEND
+  };
+
+  enum LOOP_STATE : byte
+  {
+    ANYTHING,  // ready for +IPD, n CLOSED, n CONNECTED, busy etc...
+    SKIPTOEND, // skip to newline
+
+    // +IPD,client,length:data
+    IPD,             // got +
+    IPD1,            // got +I
+    IPD2,            // got +IP
+    IPD3,            // got +IPD
+    IPD4_CLIENT,     // got +IPD,  reading cient id
+    IPD5,            // got +IPD,c
+    IPD6_LENGTH,     // got +IPD,c, reading length
+    IPD_DATA,        // got +IPD,c,ll,: collecting data
+    IPD_IGNORE_DATA, // got +IPD,c,ll,: ignoring the data that won't fit inblound Ring
+
+    GOT_CLIENT_ID, // clientid prefix to CONNECTED / CLOSED
+    GOT_CLIENT_ID2 // clientid prefix to CONNECTED / CLOSED
+  };
+
+  LOOP_STATE loopState = ANYTHING;
+  int runningClientId; // latest client inbound processing data or CLOSE
+  int dataLength;      // dataLength of +IPD
+  int clientPendingCIPSEND = -1;
+  int currentReplySize;
+  bool pendingCipsend;
+  void purgeCurrentCIPSEND();
+
+  static WiFiServer server;
+  static bool connected;
+  //static RingStream *outboundRing;
+  void loop1();
+  INBOUND_STATE loop2();
 };
 #endif

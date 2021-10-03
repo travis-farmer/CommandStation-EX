@@ -5,6 +5,5 @@ Release/*
 .clang_complete
 .gcc-flags.json
 .pio/
-.vscode/
+.vscode/*
 config.h
-.vscode/extensions.json

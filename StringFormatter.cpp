@@ -22,7 +22,7 @@
 #if defined(ARDUINO_ARCH_SAMD)
    // Some processors use a gcc compiler that renames va_list!!!
   #include <cstdarg>
-  Print * StringFormatter::diagSerial= &SerialUSB; 
+  Print * StringFormatter::diagSerial= &SerialUSB;
 #else
   Print * StringFormatter::diagSerial=&Serial;
 #endif

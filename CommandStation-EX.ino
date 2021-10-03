@@ -57,7 +57,12 @@ void setup()
 
   // Responsibility 1: Start the usb connection for diagnostics
   // This is normally Serial but uses SerialUSB on a SAMD processor
+  // Uno Wifi Rev2 is stupid wont read past this baud rate for some reason
+  #ifdef ARDUINO_AVR_UNO_WIFI_REV2
+  Serial.begin(74880);
+  #else
   Serial.begin(115200);
+  #endif
   DIAG(F("DCC++ EX v%S"),F(VERSION));
    
   CONDITIONAL_LCD_START {
