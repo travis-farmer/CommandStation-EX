@@ -141,12 +141,14 @@ bool MotorDriver::canMeasureCurrent() {
  * a central value depending on direction.
  */
 int MotorDriver::getCurrentRaw() {
-  if (currentPin==UNUSED_PIN) return 0; 
+  if (currentPin==UNUSED_PIN) return 0;
   int current;
 #if defined(ARDUINO_TEENSY40) || defined(ARDUINO_TEENSY41)
   bool irq = disableInterrupts();
   current = analogRead(currentPin)-senseOffset;
   enableInterrupts(irq);
+#elif defined(ARDUINO_ARCH_ESP8266)
+  current = analogRead(currentPin)-senseOffset;
 #else // Uno, Mega and all the TEENSY3* but not TEENSY4* 
   unsigned char sreg_backup;
   sreg_backup = SREG;   /* save interrupt enable/disable state */

@@ -32,7 +32,12 @@ SerialManager::SerialManager(Stream * myserial) {
 } 
 
 void SerialManager::init() {
-  while (!Serial && millis() < 5000); // wait max 5s for Serial to start
+  while (!Serial && millis() < 5000) // wait max 5s for Serial to start
+#if defined(ARDUINO_ARCH_ESP8266)
+    yield();                         // yield (otherwise chip resets)
+#else
+    ;                                // do nothing
+#endif
   Serial.begin(115200);
   new SerialManager(&Serial);
 #ifdef SERIAL3_COMMANDS
