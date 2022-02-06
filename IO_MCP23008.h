@@ -30,7 +30,7 @@ public:
 
   // Constructor
   MCP23008(VPIN firstVpin, uint8_t nPins, uint8_t I2CAddress, int interruptPin=-1)
-    : GPIOBase<uint8_t>((FSH *)F("MCP23008"), firstVpin, min(nPins, 8), I2CAddress, interruptPin) {
+    : GPIOBase<uint8_t>((FSH *)F("MCP23008"), firstVpin, min<int>(nPins, 8), I2CAddress, interruptPin) {
 
     requestBlock.setRequestParams(_I2CAddress, inputBuffer, sizeof(inputBuffer),
       outputBuffer, sizeof(outputBuffer));
