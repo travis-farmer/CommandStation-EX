@@ -1,5 +1,10 @@
 /*
- *  © 2020, Chris Harlow. All rights reserved.
+ *  © 2021 Mike S
+ *  © 2021 Fred Decker
+ *  © 2021 Herb Morton
+ *  © 2020-2021 Harald Barth
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
  *  
  *  This file is part of Asbelos DCC API
  *
@@ -23,6 +28,16 @@
 #include "MotorDrivers.h"
 #include "FSH.h"
 
+#include "defines.h"
+#ifndef HIGHEST_SHORT_ADDR
+#define HIGHEST_SHORT_ADDR 127
+#else
+#if HIGHEST_SHORT_ADDR > 127
+#error short addr greater than 127 does not make sense
+#endif
+#endif
+const uint16_t LONG_ADDR_MARKER = 0x4000;
+
 typedef void (*ACK_CALLBACK)(int16_t result);
 
 enum ackOp : byte
@@ -38,9 +53,11 @@ enum ackOp : byte
   ITC1,             // If True Callback(1)  (if prevous WACK got an ACK)
   ITC0,             // If True callback(0);
   ITCB,             // If True callback(byte)
+  ITCBV,            // If True callback(byte) - end of Verify Byte
   ITCB7,            // If True callback(byte &0x7F)
   NAKFAIL,          // if false callback(-1)
   CALLFAIL,         // callback(-1)
+  BIV,              // Set ackManagerByte to initial value for Verify retry
   STARTMERGE,       // Clear bit and byte settings ready for merge pass
   MERGE,            // Merge previous wack response with byte value and decrement bit number (use for readimng CV bytes)
   SETBIT,           // sets bit number to next prog byte
@@ -64,8 +81,10 @@ enum   CALLBACK_STATE : byte {
 
 // Allocations with memory implications..!
 // Base system takes approx 900 bytes + 8 per loco. Turnouts, Sensors etc are dynamically created
-#ifdef ARDUINO_AVR_UNO
+#if defined(ARDUINO_AVR_UNO)
 const byte MAX_LOCOS = 20;
+#elif defined(ARDUINO_AVR_NANO)
+const byte MAX_LOCOS = 30;
 #else
 const byte MAX_LOCOS = 50;
 #endif
@@ -85,8 +104,9 @@ public:
   static void writeCVBitMain(int cab, int cv, byte bNum, bool bValue);
   static void setFunction(int cab, byte fByte, byte eByte);
   static void setFn(int cab, int16_t functionNumber, bool on);
-  static int changeFn(int cab, int16_t functionNumber, bool pressed);
+  static void changeFn(int cab, int16_t functionNumber);
   static int  getFn(int cab, int16_t functionNumber);
+  static uint32_t getFunctionMap(int cab);
   static void updateGroupflags(byte &flags, int16_t functionNumber);
   static void setAccessory(int aAdd, byte aNum, bool activate);
   static bool writeTextPacket(byte *b, int nBytes);
@@ -113,8 +133,13 @@ public:
   static inline void setGlobalSpeedsteps(byte s) {
     globalSpeedsteps = s;
   };
+  static inline int16_t setAckRetry(byte retry) {
+    ackRetry = retry;
+    ackRetryPSum = ackRetrySum;
+    ackRetrySum = 0;  // reset running total
+    return ackRetryPSum;
+  };
 
-private:
   struct LOCO
   {
     int loco;
@@ -122,6 +147,9 @@ private:
     byte groupFlags;
     unsigned long functions;
   };
+ static LOCO speedTable[MAX_LOCOS];
+ 
+private:
   static byte joinRelay;
   static byte loopStatus;
   static void setThrottle2(uint16_t cab, uint8_t speedCode);
@@ -132,7 +160,6 @@ private:
   static FSH *shieldName;
   static byte globalSpeedsteps;
 
-  static LOCO speedTable[MAX_LOCOS];
   static byte cv1(byte opcode, int cv);
   static byte cv2(int cv);
   static int lookupSpeedTable(int locoId);
@@ -141,9 +168,15 @@ private:
 
   // ACK MANAGER
   static ackOp const *ackManagerProg;
+  static ackOp const *ackManagerProgStart;
   static byte ackManagerByte;
+  static byte ackManagerByteVerify;
   static byte ackManagerBitNum;
   static int ackManagerCv;
+  static byte ackManagerRetry;
+  static byte ackRetry;
+  static int16_t ackRetrySum;
+  static int16_t ackRetryPSum;
   static int ackManagerWord;
   static byte ackManagerStash;
   static bool ackReceived;

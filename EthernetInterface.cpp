@@ -1,5 +1,9 @@
 /*
- *  © 2020,Gregor Baues,  Chris Harlow. All rights reserved.
+ *  © 2021 Fred Decker
+ *  © 2020-2021 Harald Barth
+ *  © 2020-2021 Chris Harlow
+ *  © 2020 Gregor Baues
+ *  All rights reserved.
  *  
  *  This file is part of DCC-EX/CommandStation-EX
  *
@@ -17,12 +21,6 @@
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  * 
  */
-#if __has_include ( "config.h")
-  #include "config.h"
-#else
-  #warning config.h not found. Using defaults from config.example.h 
-  #include "config.example.h"
-#endif
 #include "defines.h" 
 #if ETHERNET_ON == true
 #include "EthernetInterface.h"
@@ -176,6 +174,7 @@ void EthernetInterface::loop()
    for (int socket = 0; socket<MAX_SOCK_NUM; socket++) {
      if (clients[socket] && !clients[socket].connected()) {
       clients[socket].stop();
+      CommandDistributor::forget(socket);          
       if (Diag::ETHERNET)  DIAG(F("Ethernet: disconnect %d "), socket);             
      }
     }

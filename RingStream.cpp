@@ -1,5 +1,6 @@
 /*
- *  © 2020, Chris Harlow. All rights reserved.
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
  *  
  *  This file is part of DCC-EX CommandStation-EX
  *
@@ -111,4 +112,13 @@ bool RingStream::commit() {
   _mark=_len+1;
   //DIAG(F("Commit2 len=%d count=%d pr=%d pw=%d m=%d"),_len, _count,_pos_read,_pos_write,_mark);
   return true; // commit worked
+}
+void RingStream::flush() {
+  _pos_write=0;
+  _pos_read=0;
+  _buffer[0]=0;
+}
+void RingStream::printBuffer(Print * stream) {
+  _buffer[_pos_write]='\0';
+  stream->print((char *)_buffer);
 }

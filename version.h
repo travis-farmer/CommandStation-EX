@@ -3,8 +3,33 @@
 
 #include "StringFormatter.h"
 
-
-#define VERSION "3.1.6"
+#define VERSION "3.2.0 rc13"
+// 3.2.0 Major functional and non-functional changes.
+//       New HAL added for I/O (digital and analogue inputs and outputs, servos etc).
+//         Support for MCP23008, MCP23017 and PCF9584 I2C GPIO Extender modules.
+//         Support for PCA9685 PWM (servo) control modules.
+//         Support for analogue inputs on Arduino pins and on ADS111x I2C modules.
+//         Support for MP3 sound playback via DFPlayer module.
+//         Support for HC-SR04 Ultrasonic range sensor module.
+//         Support for VL53L0X Laser range sensor module (Time-Of-Flight).
+//       Native non-blocking I2C drivers for AVR and Nano architectures (fallback
+//       to blocking Wire library for other platforms).
+//       EEPROM layout change - deletes EEPROM contents on first start following upgrade.
+//       New EX-RAIL automation capability.
+//       Turnout class revised to expand turnout capabilities, new commands added.
+//       Output class now allows ID > 255.
+//       Configuration options to globally flip polarity of DCC Accessory states when driven
+//       from <a> command and <T> command.
+//       Increased use of display for showing loco decoder programming information.
+//       Can disable EEPROM code
+//       Can define border between long and short addresses
+//       Turnout and accessory states (thrown/closed = 0/1 or 1/0) can be set to match RCN-213
+//       Bugfix: one-off error in CIPSEND drop
+//       Compiles on Nano Every
+//       Bugfix: disgnostic display of ack pulses >32kus
+//       Bugfix: Current read from wrong ADC during interrupt
+//       ...
+// 3.1.7 Bugfix: Unknown locos should have speed forward 
 // 3.1.6 Make output ID two bytes and guess format/size of registered outputs found in EEPROM
 // 3.1.5 Fix LCD corruption on power-up
 // 3.1.4 Refactor OLED and LCD drivers and remove unused code

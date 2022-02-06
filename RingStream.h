@@ -1,7 +1,8 @@
 #ifndef RingStream_h
 #define RingStream_h
 /*
- *  © 2020, Chris Harlow. All rights reserved.
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
  *  
  *  This file is part of DCC-EX CommandStation-EX
  *
@@ -35,6 +36,8 @@ class RingStream : public Print {
     void mark(uint8_t b);
     bool commit();
     uint8_t peekTargetMark();
+    void printBuffer(Print * streamer);
+    void flush();
     void info();
 
  private:

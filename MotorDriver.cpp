@@ -1,7 +1,11 @@
 /*
- *  © 2020, Chris Harlow. All rights reserved.
+ *  © 2021 Mike S
+ *  © 2021 Fred Decker
+ *  © 2020-2022 Harald Barth
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
  *  
- *  This file is part of Asbelos DCC API
+ *  This file is part of CommandStation-EX
  *
  *  This is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -71,7 +75,7 @@ MotorDriver::MotorDriver(byte power_pin, byte signal_pin, byte signal_pin2, int8
   if (currentPin==UNUSED_PIN) 
     DIAG(F("MotorDriver ** WARNING ** No current or short detection"));  
   else  
-    DIAG(F("MotorDriver currentPin=A%d, senseOffset=%d, rawCurentTripValue(relative to offset)=%d"),
+    DIAG(F("MotorDriver currentPin=A%d, senseOffset=%d, rawCurrentTripValue(relative to offset)=%d"),
     currentPin-A0, senseOffset,rawCurrentTripValue);
 }
 
@@ -143,16 +147,16 @@ int MotorDriver::getCurrentRaw() {
   bool irq = disableInterrupts();
   current = analogRead(currentPin)-senseOffset;
   enableInterrupts(irq);
-#elif defined(ARDUINO_TEENSY32) || defined(ARDUINO_TEENSY35)|| defined(ARDUINO_TEENSY36)
+#else // Uno, Mega and all the TEENSY3* but not TEENSY4* 
   unsigned char sreg_backup;
   sreg_backup = SREG;   /* save interrupt enable/disable state */
   cli();
   current = analogRead(currentPin)-senseOffset;
+#if defined(ARDUINO_TEENSY32) || defined(ARDUINO_TEENSY35)|| defined(ARDUINO_TEENSY36)
   overflow_count = 0;
-  SREG = sreg_backup;    /* restore interrupt state */
-#else
-  current = analogRead(currentPin)-senseOffset;
 #endif
+  if (sreg_backup & 128) sei();  /* restore interrupt state */
+#endif // outer #
   if (current<0) current=0-current;
   if ((faultPin != UNUSED_PIN)  && isLOW(fastFaultPin) && isHIGH(fastPowerPin))
       return (current == 0 ? -1 : -current);

@@ -1,4 +1,6 @@
 /*
+ *  © 2021 Fred Decker
+ *  © 2020-2022 Harald Barth
  *  (c) 2020 Chris Harlow. All rights reserved.
  *  (c) 2021 Fred Decker.  All rights reserved.
  *  (c) 2020 Harald Barth. All rights reserved.
@@ -82,5 +84,27 @@
 #define IBT_2_WITH_ARDUINO F("IBT_2_WITH_ARDUINO_SHIELD"),                                              \
                          new MotorDriver(4, 5, 6, UNUSED_PIN, A5, 41.54, 5000, UNUSED_PIN), \
                          new MotorDriver(11, 13, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
+// YFROBOT Motor Shield (V3.1)
+#define YFROBOT_MOTOR_SHIELD F("YFROBOT_MOTOR_SHIELD"), \
+    new MotorDriver(5, 4, UNUSED_PIN, UNUSED_PIN, A0, 2.99, 2000, UNUSED_PIN), \
+    new MotorDriver(6, 7, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
+
+// Makeblock ORION UNO like sized board with integrated motor driver
+// This is like an Uno with H-bridge and RJ12 contacts instead of pin rows.
+// No current sense. Barrel connector max 12V, Vmotor max 15V. 1.1A polyfuse as output protection.
+// Main is marked M1 and near RJ12 #5
+// Prog is marked M2 and near RJ12 #4
+// For details see
+// http://docs.makeblock.com/diy-platform/en/electronic-modules/main-control-boards/makeblock-orion.html
+#define ORION_UNO_INTEGRATED_SHIELD F("ORION_UNO_INTEGRATED_SHIELD"),		      \
+    new MotorDriver(6, 7, UNUSED_PIN, UNUSED_PIN, UNUSED_PIN, 1.0, 1100, UNUSED_PIN), \
+    new MotorDriver(5, 4, UNUSED_PIN, UNUSED_PIN, UNUSED_PIN, 1.0, 1100, UNUSED_PIN)
+
+// This is an example how to setup a motor shield definition for a motor shield connected
+// to an NANO EVERY board. You have to make the connectons from the shield to the board
+// as in this example or adjust the values yourself.
+#define NANOEVERY_EXAMPLE F("NANOEVERY_EXAMPLE"), \
+ new MotorDriver(5,  6, UNUSED_PIN, UNUSED_PIN, A0, 2.99, 2000, UNUSED_PIN),\
+ new MotorDriver(9, 10, UNUSED_PIN, UNUSED_PIN, A1, 2.99, 2000, UNUSED_PIN)
 
 #endif

@@ -1,7 +1,8 @@
 /*
- *  © 2020, Chris Harlow. All rights reserved.
+ *  © 2020-2021 Chris Harlow
  *  © 2020, Harald Barth.
- *  
+ *  All rights reserved.
+ *
  *  This file is part of CommandStation-EX
  *
  *  This is free software: you can redistribute it and/or modify
@@ -37,7 +38,7 @@ public:
                           const int port,
                           const byte channel);
   static void loop();
-  static void ATCommand(const byte *command);
+  static void ATCommand(HardwareSerial * stream,const byte *command);
   
 private:
   static wifiSerialState setup(Stream &setupStream, const FSH *SSSid, const FSH *password,

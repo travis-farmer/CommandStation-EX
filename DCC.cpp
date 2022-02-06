@@ -1,7 +1,13 @@
 /*
- *  © 2020, Chris Harlow. All rights reserved.
- *  © 2020, Harald Barth
- *  
+ *  © 2021 Neil McKechnie
+ *  © 2021 Mike S
+ *  © 2021 Fred Decker
+ *  © 2021 Herb Morton
+ *  © 2020-2022 Harald Barth
+ *  © 2020-2021 M Steve Todd
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
+ *
  *  This file is part of Asbelos DCC API
  *
  *  This is free software: you can redistribute it and/or modify
@@ -20,10 +26,15 @@
 #include "DIAG.h"
 #include "DCC.h"
 #include "DCCWaveform.h"
+#ifndef DISABLE_EEPROM
 #include "EEStore.h"
+#endif
 #include "GITHUB_SHA.h"
 #include "version.h"
 #include "FSH.h"
+#include "IODevice.h"
+#include "EXRAIL2.h"
+#include "CommandDistributor.h"
 
 // This module is responsible for converting API calls into
 // messages to be sent to the waveform generator.
@@ -38,11 +49,11 @@
 //   Obtaining ACKs from the prog track using a function
 //   There are no volatiles here.
 
-const byte FN_GROUP_1=0x01;         
-const byte FN_GROUP_2=0x02;         
-const byte FN_GROUP_3=0x04;         
-const byte FN_GROUP_4=0x08;         
-const byte FN_GROUP_5=0x10;         
+const byte FN_GROUP_1=0x01;
+const byte FN_GROUP_2=0x02;
+const byte FN_GROUP_3=0x04;
+const byte FN_GROUP_4=0x08;
+const byte FN_GROUP_5=0x10;
 
 FSH* DCC::shieldName=NULL;
 byte DCC::joinRelay=UNUSED_PIN;
@@ -52,11 +63,16 @@ void DCC::begin(const FSH * motorShieldName, MotorDriver * mainDriver, MotorDriv
   shieldName=(FSH *)motorShieldName;
   StringFormatter::send(Serial,F("<iDCC-EX V-%S / %S / %S G-%S>\n"), F(VERSION), F(ARDUINO_TYPE), shieldName, F(GITHUB_SHA));
 
+  // Initialise HAL layer before reading EEprom.
+  IODevice::begin();
+
+#ifndef DISABLE_EEPROM
   // Load stuff from EEprom
   (void)EEPROM; // tell compiler not to warn this is unused
   EEStore::init();
+#endif
 
-  DCCWaveform::begin(mainDriver,progDriver); 
+  DCCWaveform::begin(mainDriver,progDriver);
 }
 
 void DCC::setJoinRelayPin(byte joinRelayPin) {
@@ -68,7 +84,7 @@ void DCC::setJoinRelayPin(byte joinRelayPin) {
 }
 
 void DCC::setThrottle( uint16_t cab, uint8_t tSpeed, bool tDirection)  {
-  byte speedCode = (tSpeed & 0x7F)  + tDirection * 128; 
+  byte speedCode = (tSpeed & 0x7F)  + tDirection * 128;
   setThrottle2(cab, speedCode);
   // retain speed for loco reminders
   updateLocoReminder(cab, speedCode );
@@ -79,8 +95,8 @@ void DCC::setThrottle2( uint16_t cab, byte speedCode)  {
   uint8_t b[4];
   uint8_t nB = 0;
   // DIAG(F("setSpeedInternal %d %x"),cab,speedCode);
-  
-  if (cab > 127)
+
+  if (cab > HIGHEST_SHORT_ADDR)
     b[nB++] = highByte(cab) | 0xC0;    // convert train number into a two-byte address
   b[nB++] = lowByte(cab);
 
@@ -120,7 +136,7 @@ void DCC::setFunctionInternal(int cab, byte byte1, byte byte2) {
   byte b[4];
   byte nB = 0;
 
-  if (cab > 127)
+  if (cab > HIGHEST_SHORT_ADDR)
     b[nB++] = highByte(cab) | 0xC0;    // convert train number into a two-byte address
   b[nB++] = lowByte(cab);
   if (byte1!=0) b[nB++] = byte1;
@@ -137,93 +153,74 @@ uint8_t DCC::getThrottleSpeed(int cab) {
 
 bool DCC::getThrottleDirection(int cab) {
   int reg=lookupSpeedTable(cab);
-  if (reg<0) return false ;
+  if (reg<0) return true;
   return (speedTable[reg].speedCode & 0x80) !=0;
 }
 
 // Set function to value on or off
 void DCC::setFn( int cab, int16_t functionNumber, bool on) {
   if (cab<=0 ) return;
-  
-  if (functionNumber>28) { 
-    //non reminding advanced binary bit set 
+
+  if (functionNumber>28) {
+    //non reminding advanced binary bit set
     byte b[5];
     byte nB = 0;
-    if (cab > 127)
+    if (cab > HIGHEST_SHORT_ADDR)
       b[nB++] = highByte(cab) | 0xC0;    // convert train number into a two-byte address
     b[nB++] = lowByte(cab);
     if (functionNumber <= 127) {
-       b[nB++] = 0b11011101;   // Binary State Control Instruction short form  
+       b[nB++] = 0b11011101;   // Binary State Control Instruction short form
        b[nB++] = functionNumber | (on ? 0x80 : 0);
     }
     else  {
-       b[nB++] = 0b11000000;   // Binary State Control Instruction long form  
+       b[nB++] = 0b11000000;   // Binary State Control Instruction long form
        b[nB++] = (functionNumber & 0x7F) | (on ? 0x80 : 0);  // low order bits and state flag
        b[nB++] = functionNumber >>7 ;  // high order bits
     }
     DCCWaveform::mainTrack.schedulePacket(b, nB, 4);
     return;
   }
-  
+
   int reg = lookupSpeedTable(cab);
-  if (reg<0) return;  
+  if (reg<0) return;
 
   // Take care of functions:
   // Set state of function
+  unsigned long previous=speedTable[reg].functions;
   unsigned long funcmask = (1UL<<functionNumber);
   if (on) {
       speedTable[reg].functions |= funcmask;
   } else {
       speedTable[reg].functions &= ~funcmask;
   }
-  updateGroupflags(speedTable[reg].groupFlags, functionNumber);
-  return;
+  if (speedTable[reg].functions != previous) {
+    updateGroupflags(speedTable[reg].groupFlags, functionNumber);
+    CommandDistributor::broadcastLoco(reg);
+  }
 }
 
-// Change function according to how button was pressed,
-// typically in WiThrottle.
-// Returns new state or -1 if nothing was changed.
-int DCC::changeFn( int cab, int16_t functionNumber, bool pressed) {
-  int funcstate = -1;
-  if (cab<=0 || functionNumber>28) return funcstate;
+// Flip function state
+void DCC::changeFn( int cab, int16_t functionNumber) {
+  if (cab<=0 || functionNumber>28) return;
   int reg = lookupSpeedTable(cab);
-  if (reg<0) return funcstate;  
-
-  // Take care of functions:
-  // Imitate how many command stations do it: Button press is
-  // toggle but for F2 where it is momentary
+  if (reg<0) return;
   unsigned long funcmask = (1UL<<functionNumber);
-  if (functionNumber == 2) {
-      // turn on F2 on press and off again at release of button
-      if (pressed) {
-	  speedTable[reg].functions |= funcmask;
-	  funcstate = 1;
-      } else {
-	  speedTable[reg].functions &= ~funcmask;
-	  funcstate = 0;
-      }
-  } else {
-      // toggle function on press, ignore release
-      if (pressed) {
-        speedTable[reg].functions ^= funcmask;
-      }
-      funcstate = (speedTable[reg].functions & funcmask)? 1 : 0;
-  }
+  speedTable[reg].functions ^= funcmask;
   updateGroupflags(speedTable[reg].groupFlags, functionNumber);
-  return funcstate;
+  CommandDistributor::broadcastLoco(reg);
 }
 
 int DCC::getFn( int cab, int16_t functionNumber) {
   if (cab<=0 || functionNumber>28) return -1;  // unknown
   int reg = lookupSpeedTable(cab);
-  if (reg<0) return -1;  
+  if (reg<0) return -1;
 
   unsigned long funcmask = (1UL<<functionNumber);
   return  (speedTable[reg].functions & funcmask)? 1 : 0;
 }
 
 // Set the group flag to say we have touched the particular group.
-// A group will be reminded only if it has been touched.  
+// A group will be reminded only if it has been touched.
 void DCC::updateGroupflags(byte & flags, int16_t functionNumber) {
   byte groupMask;
   if (functionNumber<=4)       groupMask=FN_GROUP_1;
@@ -231,10 +228,19 @@ void DCC::updateGroupflags(byte & flags, int16_t functionNumber) {
   else if (functionNumber<=12) groupMask=FN_GROUP_3;
   else if (functionNumber<=20) groupMask=FN_GROUP_4;
   else                         groupMask=FN_GROUP_5;
-  flags |= groupMask; 
+  flags |= groupMask;
+}
+
+uint32_t DCC::getFunctionMap(int cab) {
+  if (cab<=0) return 0;  // unknown pretend all functions off
+  int reg = lookupSpeedTable(cab);
+  return (reg<0)?0:speedTable[reg].functions;
 }
 
 void DCC::setAccessory(int address, byte number, bool activate) {
+  #ifdef DIAG_IO
+  DIAG(F("DCC::setAccessory(%d,%d,%d)"), address, number, activate);
+  #endif
   // use masks to detect wrong values and do nothing
   if(address != (address & 511))
     return;
@@ -246,6 +252,9 @@ void DCC::setAccessory(int address, byte number, bool activate) {
   b[1] = ((((address / 64) % 8) << 4) + (number % 4 << 1) + activate % 2) ^ 0xF8; // second byte is of the form 1AAACDDD, where C should be 1, and the least significant D represent activate/deactivate
 
   DCCWaveform::mainTrack.schedulePacket(b, 2, 4);      // Repeat the packet four times
+#if defined(EXRAIL_ACTIVE)
+  RMFT2::activateEvent(address<<2|number,activate);
+#endif
 }
 
 //
@@ -255,7 +264,7 @@ void DCC::setAccessory(int address, byte number, bool activate) {
 void DCC::writeCVByteMain(int cab, int cv, byte bValue)  {
   byte b[5];
   byte nB = 0;
-  if (cab > 127)
+  if (cab > HIGHEST_SHORT_ADDR)
     b[nB++] = highByte(cab) | 0xC0;    // convert train number into a two-byte address
 
   b[nB++] = lowByte(cab);
@@ -276,7 +285,7 @@ void DCC::writeCVBitMain(int cab, int cv, byte bNum, bool bValue)  {
   bValue = bValue % 2;
   bNum = bNum % 8;
 
-  if (cab > 127)
+  if (cab > HIGHEST_SHORT_ADDR)
     b[nB++] = highByte(cab) | 0xC0;    // convert train number into a two-byte address
 
   b[nB++] = lowByte(cab);
@@ -298,25 +307,25 @@ void DCC::setProgTrackBoost(bool on) {
 FSH* DCC::getMotorShieldName() {
   return shieldName;
 }
-  
+
 const ackOp FLASH WRITE_BIT0_PROG[] = {
      BASELINE,
      W0,WACK,
-     V0, WACK,  // validate bit is 0 
+     V0, WACK,  // validate bit is 0
      ITC1,      // if acked, callback(1)
      CALLFAIL  // callback (-1)
 };
 const ackOp FLASH WRITE_BIT1_PROG[] = {
      BASELINE,
      W1,WACK,
-     V1, WACK,  // validate bit is 1 
+     V1, WACK,  // validate bit is 1
      ITC1,      // if acked, callback(1)
      CALLFAIL  // callback (-1)
 };
 
 const ackOp FLASH VERIFY_BIT0_PROG[] = {
      BASELINE,
-     V0, WACK,  // validate bit is 0 
+     V0, WACK,  // validate bit is 0
      ITC0,      // if acked, callback(0)
      V1, WACK,  // validate bit is 1
      ITC1,       
@@ -324,22 +333,22 @@ const ackOp FLASH VERIFY_BIT0_PROG[] = {
 };
 const ackOp FLASH VERIFY_BIT1_PROG[] = {
      BASELINE,
-     V1, WACK,  // validate bit is 1 
+     V1, WACK,  // validate bit is 1
      ITC1,      // if acked, callback(1)
-     V0, WACK, 
+     V0, WACK,
      ITC0,
      CALLFAIL  // callback (-1)
 };
 
 const ackOp FLASH READ_BIT_PROG[] = {
      BASELINE,
-     V1, WACK,  // validate bit is 1 
+     V1, WACK,  // validate bit is 1
      ITC1,      // if acked, callback(1)
      V0, WACK,  // validate bit is zero
      ITC0,      // if acked callback 0
      CALLFAIL       // bit not readable 
      };
-     
+
 const ackOp FLASH WRITE_BYTE_PROG[] = {
       BASELINE,
       WB,WACK,ITC1,    // Write and callback(1) if ACK 
@@ -347,14 +356,15 @@ const ackOp FLASH WRITE_BYTE_PROG[] = {
       VB,WACK,ITC1,    // validate byte and callback(1) if correct 
       CALLFAIL        // callback (-1)
       };
-      
+
 const ackOp FLASH VERIFY_BYTE_PROG[] = {
       BASELINE,
-      VB,WACK,     // validate byte 
-      ITCB,       // if ok callback value
+      BIV,         // ackManagerByte initial value
+      VB,WACK,     // validate byte
+      ITCB,       // if ok callback value	
       STARTMERGE,    //clear bit and byte values ready for merge pass
       // each bit is validated against 0 and the result inverted in MERGE
-      // this is because there tend to be more zeros in cv values than ones.  
+      // this is because there tend to be more zeros in cv values than ones.
       // There is no need for one validation as entire byte is validated at the end
       V0, WACK, MERGE,        // read and merge first tested bit (7)
       ITSKIP,                 // do small excursion if there was no ack
@@ -372,12 +382,12 @@ const ackOp FLASH VERIFY_BYTE_PROG[] = {
       VB, WACK, ITCB,  // verify merged byte and return it if acked ok 
       CALLFAIL };
       
-      
+     
 const ackOp FLASH READ_CV_PROG[] = {
       BASELINE,
       STARTMERGE,    //clear bit and byte values ready for merge pass
       // each bit is validated against 0 and the result inverted in MERGE
-      // this is because there tend to be more zeros in cv values than ones.  
+      // this is because there tend to be more zeros in cv values than ones.
       // There is no need for one validation as entire byte is validated at the end
       V0, WACK, MERGE,        // read and merge first tested bit (7)
       ITSKIP,                 // do small excursion if there was no ack
@@ -399,13 +409,13 @@ const ackOp FLASH READ_CV_PROG[] = {
 const ackOp FLASH LOCO_ID_PROG[] = {
       BASELINE,
       SETCV, (ackOp)19,     // CV 19 is consist setting
-      SETBYTE, (ackOp)0,    
+      SETBYTE, (ackOp)0,
       VB, WACK, ITSKIP,     // ignore consist if cv19 is zero (no consist)
       SETBYTE, (ackOp)128,
       VB, WACK, ITSKIP,     // ignore consist if cv19 is 128 (no consist, direction bit set)
       STARTMERGE,           // Setup to read cv 19
-      V0, WACK, MERGE,  
-      V0, WACK, MERGE,  
+      V0, WACK, MERGE,
+      V0, WACK, MERGE,
       V0, WACK, MERGE,
       V0, WACK, MERGE,
       V0, WACK, MERGE,
@@ -413,13 +423,13 @@ const ackOp FLASH LOCO_ID_PROG[] = {
       V0, WACK, MERGE,
       V0, WACK, MERGE,
       VB, WACK, ITCB7,  // return 7 bits only, No_ACK means CV19 not supported so ignore it
-      
-      SKIPTARGET,     // continue here if CV 19 is zero or fails all validation      
+
+      SKIPTARGET,     // continue here if CV 19 is zero or fails all validation
       SETCV,(ackOp)29,
       SETBIT,(ackOp)5,
       V0, WACK, ITSKIP,  // Skip to SKIPTARGET if bit 5 of CV29 is zero
-      
-      // Long locoid  
+
+      // Long locoid
       SETCV, (ackOp)17,       // CV 17 is part of locoid
       STARTMERGE,
       V0, WACK, MERGE,  // read and merge bit 1 etc
@@ -431,8 +441,8 @@ const ackOp FLASH LOCO_ID_PROG[] = {
       V0, WACK, MERGE,
       V0, WACK, MERGE,
       VB, WACK, NAKFAIL,  // verify merged byte and return -1 it if not acked ok
-      STASHLOCOID,         // keep stashed cv 17 for later 
-      // Read 2nd part from CV 18 
+      STASHLOCOID,         // keep stashed cv 17 for later
+      // Read 2nd part from CV 18
       SETCV, (ackOp)18,
       STARTMERGE,
       V0, WACK, MERGE,  // read and merge bit 1 etc
@@ -445,8 +455,8 @@ const ackOp FLASH LOCO_ID_PROG[] = {
       V0, WACK, MERGE,
       VB, WACK, NAKFAIL,  // verify merged byte and return -1 it if not acked ok
       COMBINELOCOID,        // Combile byte with stash to make long locoid and callback
-      
-      // ITSKIP Skips to here if CV 29 bit 5 was zero. so read CV 1 and return that  
+
+      // ITSKIP Skips to here if CV 29 bit 5 was zero. so read CV 1 and return that
       SKIPTARGET,
       SETCV, (ackOp)1,
       STARTMERGE,
@@ -472,8 +482,8 @@ const ackOp FLASH SHORT_LOCO_ID_PROG[] = {
       SETBIT,(ackOp)5,
       W0,WACK,
       V0,WACK,NAKFAIL,
-      SETCV, (ackOp)1,   
-      SETBYTEL,   // low byte of word 
+      SETCV, (ackOp)1,
+      SETBYTEL,   // low byte of word
       WB,WACK,    // some decoders don't ACK writes
       VB,WACK,ITCB,
       CALLFAIL
@@ -492,12 +502,12 @@ const ackOp FLASH LONG_LOCO_ID_PROG[] = {
       V1,WACK,NAKFAIL,
       // Store high byte of address in cv 17
       SETCV, (ackOp)17,
-      SETBYTEH,   // high byte of word 
+      SETBYTEH,   // high byte of word
       WB,WACK,
       VB,WACK,NAKFAIL,
-      // store 
+      // store
       SETCV, (ackOp)18,
-      SETBYTEL,   // low byte of word 
+      SETBYTEL,   // low byte of word
       WB,WACK,
       VB,WACK,ITC1,   // callback(1) means Ok
       CALLFAIL
@@ -540,24 +550,24 @@ void DCC::setLocoId(int id,ACK_CALLBACK callback) {
     callback(-1);
     return;
   }
-  if (id<=127)
+  if (id<=HIGHEST_SHORT_ADDR)
       ackManagerSetup(id, SHORT_LOCO_ID_PROG, callback);
   else
       ackManagerSetup(id | 0xc000,LONG_LOCO_ID_PROG, callback);
 }
 
 void DCC::forgetLoco(int cab) {  // removes any speed reminders for this loco
-  setThrottle2(cab,1); // ESTOP this loco if still on track  
+  setThrottle2(cab,1); // ESTOP this loco if still on track
   int reg=lookupSpeedTable(cab);
   if (reg>=0) speedTable[reg].loco=0;
   setThrottle2(cab,1); // ESTOP if this loco still on track
 }
 void DCC::forgetAllLocos() {  // removes all speed reminders
-  setThrottle2(0,1); // ESTOP all locos still on track      
+  setThrottle2(0,1); // ESTOP all locos still on track
   for (int i=0;i<MAX_LOCOS;i++) speedTable[i].loco=0;
 }
 
-byte DCC::loopStatus=0;  
+byte DCC::loopStatus=0;
 
 void DCC::loop()  {
   DCCWaveform::loop(ackManagerProg!=NULL); // power overload checks
@@ -572,58 +582,58 @@ void DCC::issueReminders() {
   // This loop searches for a loco in the speed table starting at nextLoco and cycling back around
   for (int reg=0;reg<MAX_LOCOS;reg++) {
        int slot=reg+nextLoco;
-       if (slot>=MAX_LOCOS) slot-=MAX_LOCOS; 
+       if (slot>=MAX_LOCOS) slot-=MAX_LOCOS;
        if (speedTable[slot].loco > 0) {
-          // have found the next loco to remind 
+          // have found the next loco to remind
           // issueReminder will return true if this loco is completed (ie speed and functions)
-          if (issueReminder(slot)) nextLoco=slot+1; 
+          if (issueReminder(slot)) nextLoco=slot+1;
           return;
         }
   }
 }
- 
+
 bool DCC::issueReminder(int reg) {
   unsigned long functions=speedTable[reg].functions;
   int loco=speedTable[reg].loco;
   byte flags=speedTable[reg].groupFlags;
-  
+
   switch (loopStatus) {
         case 0:
       //   DIAG(F("Reminder %d speed %d"),loco,speedTable[reg].speedCode);
          setThrottle2(loco, speedTable[reg].speedCode);
          break;
        case 1: // remind function group 1 (F0-F4)
-          if (flags & FN_GROUP_1) 
+          if (flags & FN_GROUP_1)
               setFunctionInternal(loco,0, 128 | ((functions>>1)& 0x0F) | ((functions & 0x01)<<4)); // 100D DDDD
-          break;     
+          break;
        case 2: // remind function group 2 F5-F8
-          if (flags & FN_GROUP_2) 
+          if (flags & FN_GROUP_2)
               setFunctionInternal(loco,0, 176 | ((functions>>5)& 0x0F));                           // 1011 DDDD
-          break;     
+          break;
        case 3: // remind function group 3 F9-F12
-          if (flags & FN_GROUP_3) 
+          if (flags & FN_GROUP_3)
               setFunctionInternal(loco,0, 160 | ((functions>>9)& 0x0F));                           // 1010 DDDD
-          break;   
+          break;
        case 4: // remind function group 4 F13-F20
-          if (flags & FN_GROUP_4) 
-              setFunctionInternal(loco,222, ((functions>>13)& 0xFF)); 
+          if (flags & FN_GROUP_4)
+              setFunctionInternal(loco,222, ((functions>>13)& 0xFF));
           flags&= ~FN_GROUP_4;  // dont send them again
-          break;  
+          break;
        case 5: // remind function group 5 F21-F28
           if (flags & FN_GROUP_5)
-              setFunctionInternal(loco,223, ((functions>>21)& 0xFF)); 
+              setFunctionInternal(loco,223, ((functions>>21)& 0xFF));
           flags&= ~FN_GROUP_5;  // dont send them again
-          break; 
+          break;
       }
       loopStatus++;
       // if we reach status 6 then this loco is done so
-      // reset status to 0 for next loco and return true so caller 
-      // moves on to next loco. 
+      // reset status to 0 for next loco and return true so caller
+      // moves on to next loco.
       if (loopStatus>5) loopStatus=0;
       return loopStatus==0;
     }
- 
- 
+
+
 
 
 ///// Private helper functions below here /////////////////////
@@ -658,20 +668,28 @@ int DCC::lookupSpeedTable(int locoId) {
   }
   return reg;
 }
-  
+
 void  DCC::updateLocoReminder(int loco, byte speedCode) {
- 
+
   if (loco==0) {
      // broadcast stop/estop but dont change direction
      for (int reg = 0; reg < MAX_LOCOS; reg++) {
-       speedTable[reg].speedCode = (speedTable[reg].speedCode & 0x80) |  (speedCode & 0x7f);
+       if (speedTable[reg].loco==0) continue;
+       byte newspeed=(speedTable[reg].speedCode & 0x80) |  (speedCode & 0x7f);
+       if (speedTable[reg].speedCode != newspeed) {
+         speedTable[reg].speedCode = newspeed;
+         CommandDistributor::broadcastLoco(reg);
+       }
      }
-     return; 
+     return;
   }
-  
+
   // determine speed reg for this loco
-  int reg=lookupSpeedTable(loco);       
-  if (reg>=0) speedTable[reg].speedCode = speedCode;
+  int reg=lookupSpeedTable(loco);
+  if (reg>=0 && speedTable[reg].speedCode!=speedCode) {
+    speedTable[reg].speedCode = speedCode;
+    CommandDistributor::broadcastLoco(reg);
+  }
 }
 
 DCC::LOCO DCC::speedTable[MAX_LOCOS];
@@ -679,9 +697,15 @@ int DCC::nextLoco = 0;
 
 //ACK MANAGER
 ackOp  const *  DCC::ackManagerProg;
+ackOp  const *  DCC::ackManagerProgStart;
 byte   DCC::ackManagerByte;
+byte   DCC::ackManagerByteVerify;
 byte   DCC::ackManagerStash;
 int    DCC::ackManagerWord;
+byte   DCC::ackManagerRetry;
+byte   DCC::ackRetry = 2;
+int16_t  DCC::ackRetrySum;
+int16_t  DCC::ackRetryPSum;
 int    DCC::ackManagerCv;
 byte   DCC::ackManagerBitNum;
 bool   DCC::ackReceived;
@@ -697,24 +721,29 @@ void  DCC::ackManagerSetup(int cv, byte byteValueOrBitnum, ackOp const program[]
     return;
   }
 
-  ackManagerRejoin=DCCWaveform::progTrackSyncMain;     
+  ackManagerRejoin=DCCWaveform::progTrackSyncMain;
   if (ackManagerRejoin ) {
         // Change from JOIN must zero resets packet.
         setProgTrackSyncMain(false);
-        DCCWaveform::progTrack.sentResetsSincePacket = 0;      
+        DCCWaveform::progTrack.sentResetsSincePacket = 0;
       }
-      
-   DCCWaveform::progTrack.autoPowerOff=false;           
+
+   DCCWaveform::progTrack.autoPowerOff=false;
    if (DCCWaveform::progTrack.getPowerMode() == POWERMODE::OFF) {
-        DCCWaveform::progTrack.autoPowerOff=true;  // power off afterwards           
+        DCCWaveform::progTrack.autoPowerOff=true;  // power off afterwards
         if (Diag::ACK) DIAG(F("Auto Prog power on"));
         DCCWaveform::progTrack.setPowerMode(POWERMODE::ON);
-        DCCWaveform::progTrack.sentResetsSincePacket = 0;      
+	if (MotorDriver::commonFaultPin)
+	  DCCWaveform::mainTrack.setPowerMode(POWERMODE::ON);
+        DCCWaveform::progTrack.sentResetsSincePacket = 0;
     }
 
   ackManagerCv = cv;
   ackManagerProg = program;
+  ackManagerProgStart = program;
+  ackManagerRetry = ackRetry;
   ackManagerByte = byteValueOrBitnum;
+  ackManagerByteVerify = byteValueOrBitnum;
   ackManagerBitNum=byteValueOrBitnum;
   ackManagerCallback = callback;
 }
@@ -734,66 +763,67 @@ bool DCC::checkResets(uint8_t numResets) {
 void DCC::ackManagerLoop() {
   while (ackManagerProg) {
     byte opcode=GETFLASH(ackManagerProg);
-    
+
     // breaks from this switch will step to next prog entry
     // returns from this switch will stay on same entry
     // (typically waiting for a reset counter or ACK waiting, or when all finished.)
     switch (opcode) {
       case BASELINE:
+          if (DCCWaveform::progTrack.getPowerMode()==POWERMODE::OVERLOAD) return;
       	  if (checkResets(DCCWaveform::progTrack.autoPowerOff || ackManagerRejoin  ? 20 : 3)) return;
           DCCWaveform::progTrack.setAckBaseline();
           callbackState=READY;
-          break;   
-      case W0:    // write 0 bit 
-      case W1:    // write 1 bit 
+          break;
+      case W0:    // write 0 bit
+      case W1:    // write 1 bit
             {
 	      if (checkResets(RESET_MIN)) return;
-              if (Diag::ACK) DIAG(F("W%d cv=%d bit=%d"),opcode==W1, ackManagerCv,ackManagerBitNum); 
+              if (Diag::ACK) DIAG(F("W%d cv=%d bit=%d"),opcode==W1, ackManagerCv,ackManagerBitNum);
               byte instruction = WRITE_BIT | (opcode==W1 ? BIT_ON : BIT_OFF) | ackManagerBitNum;
               byte message[] = {cv1(BIT_MANIPULATE, ackManagerCv), cv2(ackManagerCv), instruction };
               DCCWaveform::progTrack.schedulePacket(message, sizeof(message), PROG_REPEATS);
-              DCCWaveform::progTrack.setAckPending(); 
+              DCCWaveform::progTrack.setAckPending();
              callbackState=AFTER_WRITE;
          }
-            break; 
-      
-      case WB:   // write byte 
+            break;
+
+      case WB:   // write byte
             {
 	      if (checkResets( RESET_MIN)) return;
               if (Diag::ACK) DIAG(F("WB cv=%d value=%d"),ackManagerCv,ackManagerByte);
               byte message[] = {cv1(WRITE_BYTE, ackManagerCv), cv2(ackManagerCv), ackManagerByte};
               DCCWaveform::progTrack.schedulePacket(message, sizeof(message), PROG_REPEATS);
-              DCCWaveform::progTrack.setAckPending(); 
+              DCCWaveform::progTrack.setAckPending();
               callbackState=AFTER_WRITE;
             }
             break;
-      
+
       case   VB:     // Issue validate Byte packet
         {
-	  if (checkResets( RESET_MIN)) return; 
+	  if (checkResets( RESET_MIN)) return;
           if (Diag::ACK) DIAG(F("VB cv=%d value=%d"),ackManagerCv,ackManagerByte);
           byte message[] = { cv1(VERIFY_BYTE, ackManagerCv), cv2(ackManagerCv), ackManagerByte};
           DCCWaveform::progTrack.schedulePacket(message, sizeof(message), PROG_REPEATS);
-          DCCWaveform::progTrack.setAckPending(); 
+          DCCWaveform::progTrack.setAckPending();
         }
         break;
-      
+
       case V0:
       case V1:      // Issue validate bit=0 or bit=1  packet
         {
-	  if (checkResets(RESET_MIN)) return; 
-          if (Diag::ACK) DIAG(F("V%d cv=%d bit=%d"),opcode==V1, ackManagerCv,ackManagerBitNum); 
+	  if (checkResets(RESET_MIN)) return;
+          if (Diag::ACK) DIAG(F("V%d cv=%d bit=%d"),opcode==V1, ackManagerCv,ackManagerBitNum);
           byte instruction = VERIFY_BIT | (opcode==V0?BIT_OFF:BIT_ON) | ackManagerBitNum;
           byte message[] = {cv1(BIT_MANIPULATE, ackManagerCv), cv2(ackManagerCv), instruction };
           DCCWaveform::progTrack.schedulePacket(message, sizeof(message), PROG_REPEATS);
-          DCCWaveform::progTrack.setAckPending(); 
+          DCCWaveform::progTrack.setAckPending();
         }
         break;
-      
+
       case WACK:   // wait for ack (or absence of ack)
          {
           byte ackState=2; // keep polling
-      
+
           ackState=DCCWaveform::progTrack.getAck();
           if (ackState==2) return; // keep polling
           ackReceived=ackState==1;
@@ -806,21 +836,32 @@ void DCC::ackManagerLoop() {
             return;
           }
         break;
-        
+
       case ITCB:   // If True callback(byte)
           if (ackReceived) {
             callback(ackManagerByte);
             return;
           }
         break;
-
+		
+      case ITCBV:   // If True callback(byte) - Verify
+          if (ackReceived) {
+            if (ackManagerByte == ackManagerByteVerify) {
+               ackRetrySum ++;
+               LCD(1, F("v %d %d Sum=%d"), ackManagerCv, ackManagerByte, ackRetrySum);
+            }
+            callback(ackManagerByte);
+            return;
+          }
+        break;
+		
       case ITCB7:   // If True callback(byte & 0x7F)
           if (ackReceived) {
             callback(ackManagerByte & 0x7F);
             return;
           }
         break;
-        
+
       case NAKFAIL:   // If nack callback(-1)
           if (!ackReceived) {
             callback(-1);
@@ -831,78 +872,91 @@ void DCC::ackManagerLoop() {
       case CALLFAIL:  // callback(-1)
            callback(-1);
            return;
-           
+
+      case BIV:     // ackManagerByte initial value
+           ackManagerByte = ackManagerByteVerify;
+           break;
+
       case STARTMERGE:
            ackManagerBitNum=7;
-           ackManagerByte=0;     
+           ackManagerByte=0;
           break;
-          
+
       case MERGE:  // Merge previous Validate zero wack response with byte value and update bit number (use for reading CV bytes)
           ackManagerByte <<= 1;
-          // ackReceived means bit is zero. 
+          // ackReceived means bit is zero.
           if (!ackReceived) ackManagerByte |= 1;
           ackManagerBitNum--;
           break;
 
       case SETBIT:
-          ackManagerProg++; 
+          ackManagerProg++;
           ackManagerBitNum=GETFLASH(ackManagerProg);
           break;
 
      case SETCV:
-          ackManagerProg++; 
+          ackManagerProg++;
           ackManagerCv=GETFLASH(ackManagerProg);
           break;
 
      case SETBYTE:
-          ackManagerProg++; 
+          ackManagerProg++;
           ackManagerByte=GETFLASH(ackManagerProg);
           break;
 
     case SETBYTEH:
           ackManagerByte=highByte(ackManagerWord);
           break;
-          
+
     case SETBYTEL:
           ackManagerByte=lowByte(ackManagerWord);
           break;
 
      case STASHLOCOID:
-          ackManagerStash=ackManagerByte;  // stash value from CV17 
+          ackManagerStash=ackManagerByte;  // stash value from CV17
           break;
-          
-     case COMBINELOCOID: 
+
+     case COMBINELOCOID:
           // ackManagerStash is  cv17, ackManagerByte is CV 18
-          callback( ackManagerByte + ((ackManagerStash - 192) << 8));
-          return;            
+          callback( LONG_ADDR_MARKER | ( ackManagerByte + ((ackManagerStash - 192) << 8)));
+          return;
 
      case ITSKIP:
-          if (!ackReceived) break; 
+          if (!ackReceived) break;
           // SKIP opcodes until SKIPTARGET found
           while (opcode!=SKIPTARGET) {
-            ackManagerProg++; 
+            ackManagerProg++;
             opcode=GETFLASH(ackManagerProg);
           }
           break;
-     case SKIPTARGET: 
-          break;     
-     default: 
+     case SKIPTARGET:
+          break;
+     default:
           DIAG(F("!! ackOp %d FAULT!!"),opcode);
           callback( -1);
-          return;        
-    
+          return;
+
       }  // end of switch
     ackManagerProg++;
   }
 }
 
 void DCC::callback(int value) {
+    // check for automatic retry
+    if (value == -1 && ackManagerRetry > 0) {
+      ackRetrySum ++;
+      LCD(0, F("Retry %d %d Sum=%d"), ackManagerCv, ackManagerRetry, ackRetrySum);
+      ackManagerRetry --;
+      ackManagerProg = ackManagerProgStart;
+      return;
+    }
+
     static unsigned long callbackStart;
     // We are about to leave programming mode
     // Rule 1: If we have written to a decoder we must maintain power for 100mS
     // Rule 2: If we are re-joining the main track we must power off for 30mS
 
-    switch (callbackState) {    
+    switch (callbackState) {
        case AFTER_WRITE:  // first attempt to callback after a write operation
 	    if (!ackManagerRejoin && !DCCWaveform::progTrack.autoPowerOff) {
                callbackState=READY;
@@ -912,7 +966,7 @@ void DCC::callback(int value) {
             callbackState=WAITING_100;
             if (Diag::ACK) DIAG(F("Stable 100mS"));
             break;
-            
+
        case WAITING_100:  // waiting for 100mS
             if (millis()-callbackStart < 100) break;
             // stable after power maintained for 100mS
@@ -921,32 +975,34 @@ void DCC::callback(int value) {
             // but if we will keep the power on, we must off it for 30mS
             if (DCCWaveform::progTrack.autoPowerOff) callbackState=READY;
             else { // Need to cycle power off and on
-                DCCWaveform::progTrack.setPowerMode(POWERMODE::OFF); 
+                DCCWaveform::progTrack.setPowerMode(POWERMODE::OFF);
                 callbackStart=millis();
                 callbackState=WAITING_30;
                 if (Diag::ACK) DIAG(F("OFF 30mS"));
             }
             break;
- 
+
         case WAITING_30:  // waiting for 30mS with power off
             if (millis()-callbackStart < 30) break;
             //power has been off for 30mS
-            DCCWaveform::progTrack.setPowerMode(POWERMODE::ON); 
+            DCCWaveform::progTrack.setPowerMode(POWERMODE::ON);
             callbackState=READY;
             break;
-     
+
        case READY:  // ready after read, or write after power delay and off period.
             // power off if we powered it on
            if (DCCWaveform::progTrack.autoPowerOff) {
               if (Diag::ACK) DIAG(F("Auto Prog power off"));
               DCCWaveform::progTrack.doAutoPowerOff();
+	      if (MotorDriver::commonFaultPin)
+		DCCWaveform::mainTrack.setPowerMode(POWERMODE::OFF);
            }
           // Restore <1 JOIN> to state before BASELINE
           if (ackManagerRejoin) {
               setProgTrackSyncMain(true);
               if (Diag::ACK) DIAG(F("Auto JOIN"));
-          }  
-    
+          }
+
           ackManagerProg=NULL;  // no more steps to execute
           if (Diag::ACK) DIAG(F("Callback(%d)"),value);
           (ackManagerCallback)( value);
@@ -959,10 +1015,10 @@ void DCC::displayCabList(Print * stream) {
     for (int reg = 0; reg < MAX_LOCOS; reg++) {
        if (speedTable[reg].loco>0) {
         used ++;
-        StringFormatter::send(stream,F("cab=%d, speed=%d, dir=%c \n"),       
+        StringFormatter::send(stream,F("cab=%d, speed=%d, dir=%c \n"),
            speedTable[reg].loco,  speedTable[reg].speedCode & 0x7f,(speedTable[reg].speedCode & 0x80) ? 'F':'R');
        }
      }
      StringFormatter::send(stream,F("Used=%d, max=%d\n"),used,MAX_LOCOS);
-     
+
 }

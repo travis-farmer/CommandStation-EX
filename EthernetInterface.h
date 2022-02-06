@@ -1,5 +1,10 @@
 /*
- *  © 2020,Gregor Baues,  Chris Harlow. All rights reserved.
+ *  © 2021 Neil McKechnie
+ *  © 2021 Mike S
+ *  © 2021 Fred Decker
+ *  © 2020-2021 Chris Harlow
+ *  © 2020 Gregor Baues
+ *  All rights reserved.
  *  
  *  This file is part of DCC-EX/CommandStation-EX
  *
@@ -22,12 +27,8 @@
 
 #ifndef EthernetInterface_h
 #define EthernetInterface_h
-#if __has_include ( "config.h")
-  #include "config.h"
-#else
-  #warning config.h not found. Using defaults from config.example.h 
-  #include "config.example.h"
-#endif
+
+#include "defines.h"
 #include "DCCEXParser.h"
 #include <Arduino.h>
 #include <avr/pgmspace.h>

@@ -1,22 +1,24 @@
 /*
-    © 2020, Chris Harlow. All rights reserved.
-    © 2020, Harald Barth.
-
-    This file is part of CommandStation-EX
-
-    This is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    It is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
-*/
+ *  © 2021 Fred Decker
+ *  © 2020-2022 Harald Barth
+ *  © 2020-2022 Chris Harlow
+ *  All rights reserved.
+ *
+ *  This file is part of CommandStation-EX
+ *
+ *  This is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  It is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #ifndef ARDUINO_AVR_UNO_WIFI_REV2
 // This code is NOT compiled on a unoWifiRev2 processor which uses a different architecture 
 #include "WifiInterface.h"        /* config.h included there */
@@ -75,13 +77,13 @@ bool WifiInterface::setup(long serial_link_speed,
   (void) channel;
 #endif  
   
-#if NUM_SERIAL > 0
+#if NUM_SERIAL > 0 && !defined(SERIAL1_COMMANDS)
   Serial1.begin(serial_link_speed);
   wifiUp = setup(Serial1, wifiESSID, wifiPassword, hostname, port, channel);
 #endif
 
 // Other serials are tried, depending on hardware.
-#if NUM_SERIAL > 1
+#if NUM_SERIAL > 1 && !defined(SERIAL2_COMMANDS)
   if (wifiUp == WIFI_NOAT)
   {
     Serial2.begin(serial_link_speed);
@@ -89,7 +91,7 @@ bool WifiInterface::setup(long serial_link_speed,
   }
 #endif
   
-#if NUM_SERIAL > 2
+#if NUM_SERIAL > 2 && !defined(SERIAL3_COMMANDS)
   if (wifiUp == WIFI_NOAT)
   {
     Serial3.begin(serial_link_speed);
@@ -277,9 +279,15 @@ wifiSerialState WifiInterface::setup2(const FSH* SSid, const FSH* password,
 
   StringFormatter::send(wifiStream, F("AT+CIPSERVER=0\r\n")); // turn off tcp server (to clean connections before CIPMUX=1)
   checkForOK(1000, true); // ignore result in case it already was off
-   
+
   StringFormatter::send(wifiStream, F("AT+CIPMUX=1\r\n")); // configure for multiple connections
   if (!checkForOK(1000, true)) return WIFI_DISCONNECTED;
+
+  if(!oldCmd) {                                                                    // no idea to test this on old firmware
+    StringFormatter::send(wifiStream, F("AT+MDNS=1,\"%S\",\"withrottle\",%d\r\n"),
+			  hostname, port);                                         // mDNS responder
+    checkForOK(1000, true);                                                        // dont care if not supported
+  }
 
   StringFormatter::send(wifiStream, F("AT+CIPSERVER=1,%d\r\n"), port); // turn on server on port
   if (!checkForOK(1000, true)) return WIFI_DISCONNECTED;
@@ -316,19 +324,45 @@ wifiSerialState WifiInterface::setup2(const FSH* SSid, const FSH* password,
 
 
 // This function is used to allow users to enter <+ commands> through the DCCEXParser
+// <+command>  sends AT+command to the ES and returns to the caller.
 // Once the user has made whatever changes to the AT commands, a <+X> command can be used
 // to force on the connectd flag so that the loop will start picking up wifi traffic.
 // If the settings are corrupted <+RST> will clear this and then you must restart the arduino.
+
+// Using the <+> command with no command string causes the code to enter an echo loop so that all
+// input is directed to the ES and all ES output written to the USB Serial.
+// The sequence "!!!" returns the Arduino to the normal loop mode
+
  
-void WifiInterface::ATCommand(const byte * command) {
+void WifiInterface::ATCommand(HardwareSerial * stream,const byte * command) {
   command++;
+  if (*command=='\0') { // User gave <+> command  
+    stream->print(F("\nES AT command passthrough mode, use ! to exit\n"));
+    while(stream->available()) stream->read(); // Drain serial input first 
+    bool startOfLine=true;
+    while(true) {
+      while (wifiStream->available()) stream->write(wifiStream->read());
+      if (stream->available()) {
+        int cx=stream->read();
+        // A newline followed by !!! is an exit
+        if (cx=='\n' || cx=='\r') startOfLine=true; 
+        else if (startOfLine && cx=='!')  break;
+        else startOfLine=false; 
+        stream->write(cx);
+        wifiStream->write(cx);  
+      }
+    }
+    stream->print(F("Passthrough Ended"));
+    return; 
+  }
+  
   if (*command=='X') {
-     connected = true;
-     DIAG(F("++++++ Wifi Connction forced on ++++++++"));
+    connected = true;
+    DIAG(F("++++++ Wifi Connction forced on ++++++++"));
   }
   else {
-        StringFormatter::  send(wifiStream, F("AT+%s\r\n"), command);
-        checkForOK(10000,  true);
+    StringFormatter::  send(wifiStream, F("AT+%s\r\n"), command);
+    checkForOK(10000,  true);
   }
 }
 

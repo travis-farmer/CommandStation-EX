@@ -1,7 +1,8 @@
-/*
- *  (c) 2020 Chris Harlow. All rights reserved.
- *
- *  This file is part of CommandStation-EX
+ /*
+ *  © 2021 Chris Harlow
+ *  All rights reserved.
+ *  
+ *  This file is part of DCC++EX
  *
  *  This is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,24 +17,33 @@
  *  You should have received a copy of the GNU General Public License
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  */
-/*!
- *  @file PWMServoDriver.h
- *
- *  Used to set servo positions on an I2C bus with 1 or more PCA96685 boards.
- */
-#ifndef PWMServoDriver_H
-#define PWMServoDriver_H
 
+#ifndef SerialManager_h
+#define SerialManager_h
 
-class PWMServoDriver {
+#include "Arduino.h"
+#include "defines.h"
+#include "RingStream.h"
+
+#ifndef COMMAND_BUFFER_SIZE
+ #define COMMAND_BUFFER_SIZE 100
+#endif
+
+class SerialManager {
 public:
-    static void setServo(byte servoNum,  uint16_t pos);
-    
-private:
-  static byte setupFlags; 
-  static byte failFlags; 
-  static bool setup(int board);
-  static void writeRegister(uint8_t i2caddr,uint8_t hardwareRegister, uint8_t d);
+  static void init();
+  static void loop();
+  static void broadcast(RingStream * ring);
+  
+private:  
+  static SerialManager * first;
+  SerialManager(Stream * myserial);
+  void loop2();
+  void broadcast2(RingStream * ring);
+  Stream * serial;
+  SerialManager * next;
+  byte bufferLength;
+  byte buffer[COMMAND_BUFFER_SIZE]; 
+  bool inCommandPayload;
 };
-
 #endif

@@ -1,7 +1,8 @@
 /*
- *  (c) 2020 Chris Harlow. All rights reserved.
- *  (c) 2021 Fred Decker.  All rights reserved.
- *  (c) 2020 Harald Barth. All rights reserved.
+ *  © 2021 Fred Decker
+ *  © 2020-2021 Harald Barth
+ *  © 2020-2021 Chris Harlow
+ *  All rights reserved.
  *  
  *  This file is part of CommandStation-EX
  *
@@ -29,6 +30,7 @@
 #include "DCC.h"
 #include "DIAG.h"
 #include "DCCEXParser.h"
+#include "SerialManager.h"
 #include "version.h"
 #include "WifiInterface.h"
 #ifdef ESP_FAMILY
@@ -40,10 +42,11 @@
 #include "LCD_Implementation.h"
 #include "LCN.h"
 #include "freeMemory.h"
-
-#if __has_include ( "myAutomation.h")
-  #include "RMFT.h"
-  #define RMFT_ACTIVE
-#endif
+#include "IODevice.h"
+#include "Turnouts.h"
+#include "Sensors.h"
+#include "Outputs.h"
+#include "EXRAIL.h"
+#include "CommandDistributor.h"
     
 #endif

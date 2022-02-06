@@ -1,6 +1,9 @@
 /*
- *  (c) 2020 Chris Harlow. All rights reserved.
- *  (c) 2020 Harald Barth. All rights reserved.
+ *  © 2021 Neil McKechnie
+ *  © 2021 Fred Decker
+ *  © 2020-2021 Harald Barth
+ *  © 2020 Chris Harlow
+ *  All rights reserved.
  *  
  *  This file is part of CommandStation-EX
  *
@@ -17,6 +20,7 @@
  *  You should have received a copy of the GNU General Public License
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  */
+#ifndef DISABLE_EEPROM
 #ifndef EEStore_h
 #define EEStore_h
 
@@ -29,7 +33,7 @@ extern ExternalEEPROM EEPROM;
 #include <EEPROM.h>
 #endif
 
-#define EESTORE_ID "DCC++"
+#define EESTORE_ID "DCC++1"
 
 struct EEStoreData{
   char id[sizeof(EESTORE_ID)];
@@ -52,3 +56,4 @@ struct EEStore{
 };
 
 #endif
+#endif // DISABLE_EEPROM

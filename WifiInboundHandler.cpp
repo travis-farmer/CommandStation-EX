@@ -1,4 +1,7 @@
 /*
+ *  © 2021 Fred Decker
+ *  © 2021 Fred Decker
+ *  © 2020-2021 Chris Harlow
  *  © 2020, Chris Harlow. All rights reserved.
  *  © 2020, Harald Barth.
  *  
@@ -85,7 +88,9 @@ void WifiInboundHandler::loop1() {
          CommandDistributor::parse(clientId,cmd,outboundRing);
          // The commit call will either write the lenbgth bytes 
          // OR rollback to the mark because the reply is empty or commend generated more than fits the buffer 
-         outboundRing->commit();
+         if (!outboundRing->commit()) {
+            DIAG(F("OUTBOUND FULL processing cmd:%s"),cmd);
+         }
          return;
       }
    }
@@ -150,7 +155,7 @@ WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
         if (ch=='E' || ch=='l') { // ERROR or "link is not valid"
           if (clientPendingCIPSEND>=0) {
             // A CIPSEND was errored... just toss it away
-            purgeCurrentCIPSEND();  
+            purgeCurrentCIPSEND(); 
           }
           loopState=SKIPTOEND; 
           break; 
@@ -229,6 +234,7 @@ WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
         if (ch=='C') {
          // got "x C" before CLOSE or CONNECTED, or CONNECT FAILED
          if (runningClientId==clientPendingCIPSEND) purgeCurrentCIPSEND();
+         else CommandDistributor::forget(runningClientId);
         }
         loopState=SKIPTOEND;   
         break;
@@ -243,8 +249,9 @@ WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
 
 void WifiInboundHandler::purgeCurrentCIPSEND() {
          // A CIPSEND was sent but errored... or the client closed just toss it away
-         if (Diag::WIFI) DIAG(F("Wifi: DROPPING CIPSEND=%d,%d"),clientPendingCIPSEND,currentReplySize);
-         for (int i=0;i<=currentReplySize;i++) outboundRing->read();
+         CommandDistributor::forget(clientPendingCIPSEND); 
+         DIAG(F("Wifi: DROPPING CIPSEND=%d,%d"),clientPendingCIPSEND,currentReplySize);
+         for (int i=0;i<currentReplySize;i++) outboundRing->read();
          pendingCipsend=false;  
          clientPendingCIPSEND=-1;
 }

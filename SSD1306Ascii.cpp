@@ -89,121 +89,6 @@ const uint8_t FLASH SSD1306AsciiWire::blankPixels[30] =
   {0x40,        // First byte specifies data mode
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};  
 
-//==============================================================================
-// SSD1306AsciiWire Method Definitions
-//------------------------------------------------------------------------------
- 
-// Constructor
-SSD1306AsciiWire::SSD1306AsciiWire(int width, int height) {
-  // Set size in characters in base class
-  lcdRows = height / 8;
-  lcdCols = width / 6;
-
-  I2CManager.begin();
-  I2CManager.setClock(400000L);  // Set max supported I2C speed
-  for (byte address = 0x3c; address <= 0x3d; address++) {
-    if (I2CManager.exists(address)) {
-      // Device found
-      DIAG(F("%dx%d OLED display configured on I2C:x%x"), width, height, address);
-      if (width == 132)
-        begin(&SH1106_132x64, address);
-      else if (height == 32)
-        begin(&Adafruit128x32, address);
-      else
-        begin(&Adafruit128x64, address);
-      // Set singleton address
-      lcdDisplay = this;
-      clear();
-      return;
-    }
-  }
-  DIAG(F("OLED display not found"));
-}
-
-/* Clear screen by writing blank pixels. */
-void SSD1306AsciiWire::clearNative() {
-  const int maxBytes = sizeof(blankPixels);  // max number of bytes sendable over Wire
-  for (uint8_t r = 0; r <= m_displayHeight/8 - 1; r++) {
-    setRowNative(r);   // Position at start of row to be erased
-    for (uint8_t c = 0; c <= m_displayWidth - 1; c += maxBytes-1) {
-      uint8_t len = min(m_displayWidth-c, maxBytes-1) + 1;
-      I2CManager.write_P(m_i2cAddr, blankPixels, len);  // Write a number of blank columns
-    }
-  }
-}
-
-// Initialise device
-void SSD1306AsciiWire::begin(const DevType* dev, uint8_t i2cAddr) {
-  m_i2cAddr = i2cAddr;
-  m_col = 0;
-  m_row = 0;
-  const uint8_t* table = (const uint8_t*)GETFLASHW(&dev->initcmds);
-  uint8_t size = GETFLASH(&dev->initSize);
-  m_displayWidth = GETFLASH(&dev->lcdWidth);
-  m_displayHeight = GETFLASH(&dev->lcdHeight);
-  m_colOffset = GETFLASH(&dev->colOffset);
-  I2CManager.write_P(m_i2cAddr, table, size);
-  if (m_displayHeight == 32) 
-    I2CManager.write(m_i2cAddr, 5, 0, // Set command mode
-      SSD1306_SETMULTIPLEX, 0x1F,     // ratio 32
-      SSD1306_SETCOMPINS, 0x02);      // sequential COM pins, disable remap
-}
-
-//------------------------------------------------------------------------------
-
-// Set cursor position (by text line)
-void SSD1306AsciiWire::setRowNative(uint8_t line) {
-  // Calculate pixel position from line number
-  uint8_t row = line*8;
-  if (row < m_displayHeight) {
-    m_row = row;
-    m_col = m_colOffset;
-    // Build output buffer for I2C
-    uint8_t len = 0;
-    outputBuffer[len++] = 0x00;  // Set to command mode
-    outputBuffer[len++] = SSD1306_SETLOWCOLUMN | (m_col & 0XF);
-    outputBuffer[len++] = SSD1306_SETHIGHCOLUMN | (m_col >> 4);
-    outputBuffer[len++] = SSD1306_SETSTARTPAGE | (m_row/8);
-    I2CManager.write(m_i2cAddr, outputBuffer, len);
-  }
-}
-//------------------------------------------------------------------------------
-
-// Write a character to the OLED
-size_t SSD1306AsciiWire::writeNative(uint8_t ch) {
-  const uint8_t* base = m_font;
-
-  if (ch < m_fontFirstChar || ch >= (m_fontFirstChar + m_fontCharCount))
-    return 0;
-  // Check if character would be partly or wholly off the display
-  if (m_col + fontWidth > m_displayWidth)
-    return 0;
-#if defined(NOLOWERCASE)
-  // Adjust if lowercase is missing
-  if (ch >= 'a') {
-    if (ch <= 'z')
-      ch = ch - 'a' + 'A';  // Capitalise
-    else
-      ch -= 26; // Allow for missing lowercase letters
-  }
-#endif
-  ch -= m_fontFirstChar;
-  base += fontWidth * ch;
-  // Build output buffer for I2C
-  outputBuffer[0] = 0x40;     // set SSD1306 controller to data mode
-  uint8_t bufferPos = 1;
-  // Copy character pixel columns
-  for (uint8_t i = 0; i < fontWidth; i++) 
-    outputBuffer[bufferPos++] = GETFLASH(base++);
-  // Add blank pixels between letters
-  for (uint8_t i = 0; i < letterSpacing; i++) 
-    outputBuffer[bufferPos++] = 0;
-
-  // Write the data to I2C display
-  I2CManager.write(m_i2cAddr, outputBuffer, bufferPos);
-  m_col += fontWidth + letterSpacing;
-  return 1;
-}
 
 //==============================================================================
 // this section is based on https://github.com/adafruit/Adafruit_SSD1306
@@ -230,23 +115,6 @@ const uint8_t FLASH SSD1306AsciiWire::Adafruit128xXXinit[] = {
     SSD1306_DISPLAYON
 };
 
-/** Initialize a 128x32 SSD1306 oled display. */
-const DevType FLASH SSD1306AsciiWire::Adafruit128x32 = {
-  Adafruit128xXXinit,
-  sizeof(Adafruit128xXXinit),
-  128,
-  32,
-  0
-};
-
-/** Initialize a 128x64 oled display. */
-const DevType FLASH SSD1306AsciiWire::Adafruit128x64 = {
-  Adafruit128xXXinit,
-  sizeof(Adafruit128xXXinit),
-  128,
-  64,
-  0
-};
 //------------------------------------------------------------------------------
 // This section is based on https://github.com/stanleyhuangyc/MultiLCD
 
@@ -271,15 +139,123 @@ const uint8_t FLASH SSD1306AsciiWire::SH1106_132x64init[] = {
   SSD1306_DISPLAYON
 };
 
-/** Initialize a 132x64 oled SH1106 display. */
-const DevType FLASH SSD1306AsciiWire::SH1106_132x64 =  {
-  SH1106_132x64init,
-  sizeof(SH1106_132x64init),
-  128,
-  64,
-  2    // SH1106 is a 132x64 controller but most OLEDs are only attached
-       // to columns 2-129.
-};
+//==============================================================================
+// SSD1306AsciiWire Method Definitions
+//------------------------------------------------------------------------------
+ 
+// Constructor
+SSD1306AsciiWire::SSD1306AsciiWire(int width, int height) {
+  m_displayWidth = width;
+  m_displayHeight = height;
+  // Set size in characters in base class
+  lcdRows = height / 8;
+  lcdCols = width / 6;
+  m_col = 0;
+  m_row = 0;
+  m_colOffset = 0;
+
+  I2CManager.begin();
+  I2CManager.setClock(400000L);  // Set max supported I2C speed
+  for (byte address = 0x3c; address <= 0x3d; address++) {
+    if (I2CManager.exists(address)) {
+      m_i2cAddr = address;
+      if (m_displayWidth==132 && m_displayHeight==64) {
+        // SH1106 display.  This uses 128x64 centered within a 132x64 OLED.
+        m_colOffset = 2;
+        I2CManager.write_P(address, SH1106_132x64init, sizeof(SH1106_132x64init));
+      } else if (m_displayWidth==128 && (m_displayHeight==64 || m_displayHeight==32)) {
+        // SSD1306 128x64 or 128x32
+        I2CManager.write_P(address, Adafruit128xXXinit, sizeof(Adafruit128xXXinit));
+        if (m_displayHeight == 32) 
+          I2CManager.write(address, 5, 0, // Set command mode
+            SSD1306_SETMULTIPLEX, 0x1F,     // ratio 32
+            SSD1306_SETCOMPINS, 0x02);      // sequential COM pins, disable remap
+      } else {
+        DIAG(F("OLED configuration option not recognised"));
+        return;
+      }
+      // Device found
+      DIAG(F("%dx%d OLED display configured on I2C:x%x"), width, height, address);
+      // Set singleton address
+      lcdDisplay = this;
+      clear();
+      return;
+    }
+  }
+  DIAG(F("OLED display not found"));
+}
+
+/* Clear screen by writing blank pixels. */
+void SSD1306AsciiWire::clearNative() {
+  const int maxBytes = sizeof(blankPixels);  // max number of bytes sendable over Wire
+  for (uint8_t r = 0; r <= m_displayHeight/8 - 1; r++) {
+    setRowNative(r);   // Position at start of row to be erased
+    for (uint8_t c = 0; c <= m_displayWidth - 1; c += maxBytes-1) {
+      uint8_t len = min(m_displayWidth-c, maxBytes-1) + 1;
+      I2CManager.write_P(m_i2cAddr, blankPixels, len);  // Write a number of blank columns
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+
+// Set cursor position (by text line)
+void SSD1306AsciiWire::setRowNative(uint8_t line) {
+  // Calculate pixel position from line number
+  uint8_t row = line*8;
+  if (row < m_displayHeight) {
+    m_row = row;
+    m_col = m_colOffset;
+    // Before using buffer, wait for last request to complete
+    requestBlock.wait();
+    // Build output buffer for I2C
+    uint8_t len = 0;
+    outputBuffer[len++] = 0x00;  // Set to command mode
+    outputBuffer[len++] = SSD1306_SETLOWCOLUMN | (m_col & 0XF);
+    outputBuffer[len++] = SSD1306_SETHIGHCOLUMN | (m_col >> 4);
+    outputBuffer[len++] = SSD1306_SETSTARTPAGE | (m_row/8);
+    I2CManager.write(m_i2cAddr, outputBuffer, len, &requestBlock);
+  }
+}
+//------------------------------------------------------------------------------
+
+// Write a character to the OLED
+size_t SSD1306AsciiWire::writeNative(uint8_t ch) {
+  const uint8_t* base = m_font;
+
+  if (ch < m_fontFirstChar || ch >= (m_fontFirstChar + m_fontCharCount))
+    return 0;
+  // Check if character would be partly or wholly off the display
+  if (m_col + fontWidth > m_displayWidth)
+    return 0;
+#if defined(NOLOWERCASE)
+  // Adjust if lowercase is missing
+  if (ch >= 'a') {
+    if (ch <= 'z')
+      ch = ch - 'a' + 'A';  // Capitalise
+    else
+      ch -= 26; // Allow for missing lowercase letters
+  }
+#endif
+  ch -= m_fontFirstChar;
+  base += fontWidth * ch;
+  // Before using buffer, wait for last request to complete
+  requestBlock.wait();
+  // Build output buffer for I2C
+  outputBuffer[0] = 0x40;     // set SSD1306 controller to data mode
+  uint8_t bufferPos = 1;
+  // Copy character pixel columns
+  for (uint8_t i = 0; i < fontWidth; i++) 
+    outputBuffer[bufferPos++] = GETFLASH(base++);
+  // Add blank pixels between letters
+  for (uint8_t i = 0; i < letterSpacing; i++) 
+    outputBuffer[bufferPos++] = 0;
+
+  // Write the data to I2C display
+  I2CManager.write(m_i2cAddr, outputBuffer, bufferPos, &requestBlock);
+  m_col += fontWidth + letterSpacing;
+  return 1;
+}
 
 
 //------------------------------------------------------------------------------
