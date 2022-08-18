@@ -271,6 +271,8 @@ const  FLASH  int16_t RMFT2::SignalDefinitions[] = {
 #define ONACTIVATE(addr,subaddr) OPCODE_ONACTIVATE,V(addr<<2|subaddr),
 #define ONACTIVATEL(linear) OPCODE_ONACTIVATE,V(linear+3),
 #define ONAMBER(signal_id) OPCODE_ONAMBER,V(signal_id),
+#define ONBLOCKENTER(blockid) OPCODE_ONBLOCKENTER,V(blockid),
+#define ONBLOCKEXIT(blockid) OPCODE_ONBLOCKEXIT,V(blockid),
 #define ONCLOSE(turnout_id) OPCODE_ONCLOSE,V(turnout_id),
 #define ONDEACTIVATE(addr,subaddr) OPCODE_ONDEACTIVATE,V(addr<<2|subaddr),
 #define ONDEACTIVATEL(linear) OPCODE_ONDEACTIVATE,V(linear+3),

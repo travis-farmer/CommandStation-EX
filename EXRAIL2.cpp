@@ -90,6 +90,8 @@ LookList *  RMFT2::onDeactivateLookup=NULL;
 LookList *  RMFT2::onRedLookup=NULL;
 LookList *  RMFT2::onAmberLookup=NULL;
 LookList *  RMFT2::onGreenLookup=NULL;
+LookList *  RMFT2::onBlockEnterLookup=NULL;
+LookList *  RMFT2::onBlockExitLookup=NULL;
 
 #define GET_OPCODE GETFLASH(RMFT2::RouteCode+progCounter)
 #define GET_OPERAND(n) GETFLASHW(RMFT2::RouteCode+progCounter+1+(n*3))
@@ -153,7 +155,9 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   onRedLookup=LookListLoader(OPCODE_ONRED);
   onAmberLookup=LookListLoader(OPCODE_ONAMBER);
   onGreenLookup=LookListLoader(OPCODE_ONGREEN);
-
+  onBlockEnterLookup=LookListLoader(OPCODE_ONBLOCKENTER);
+  onBlockExitLookup=LookListLoader(OPCODE_ONBLOCKEXIT);
+  
   // Second pass startup, define any turnouts or servos, set signals red
   // add sequences onRoutines to the lookups
   for (int sigpos=0;;sigpos+=4) {
@@ -923,6 +927,8 @@ void RMFT2::loop2() {
   case OPCODE_ONCLOSE: // Turnout event catchers ignored here
   case OPCODE_ONTHROW:
   case OPCODE_ONACTIVATE: // Activate event catchers ignored here
+  case OPCODE_ONBLOCKENTER:
+  case OPCODE_ONBLOCKEXIT:
   case OPCODE_ONDEACTIVATE:
   case OPCODE_ONRED:
   case OPCODE_ONAMBER:
@@ -1052,17 +1058,29 @@ void RMFT2::activateEvent(int16_t addr, bool activate) {
   if (activate)  handleEvent(F("ACTIVATE"),onActivateLookup,addr);
   else handleEvent(F("DEACTIVATE"),onDeactivateLookup,addr);
 }
+
+void RMFT2::blockEvent(int16_t blockId, int16_t locoid, bool enterBlock) {
+    RMFT2 * task=enterBlock 
+            ? handleEvent(F("BLOCKENTER"),onBlockEnterLookup,blockId)
+            : handleEvent(F("BLOCKEXIT"),onBlockExitLookup,blockId);
+    if (task) {
+      // set task info from locoid 
+      byte speed=DCC::getThrottleSpeedByte(locoid);
+      task->speedo=speed & 0x7f;
+      task->forward=speed >> 7; 
+    } 
+}
  
-void RMFT2::handleEvent(const FSH* reason,LookList* handlers, int16_t id) {
+RMFT2 * RMFT2::handleEvent(const FSH* reason,LookList* handlers, int16_t id) {
   int pc= handlers->find(id);
-  if (pc<0) return;
+  if (pc<0) return NULL;
   
   // Check we dont already have a task running this handler
   RMFT2 * task=loopTask;
   while(task) {
     if (task->onEventStartPosition==pc) {
       DIAG(F("Recursive ON%S(%d)"),reason, id);
-      return;
+      return NULL;
     }
     task=task->next;
     if (task==loopTask) break;
@@ -1070,6 +1088,7 @@ void RMFT2::handleEvent(const FSH* reason,LookList* handlers, int16_t id) {
   
   task=new RMFT2(pc);  // new task starts at this instruction
   task->onEventStartPosition=pc; // flag for recursion detector
+  return task;
 }
 
 void RMFT2::printMessage2(const FSH * msg) {

@@ -31,6 +31,8 @@ class LCN {
     static bool firstLoop; 
     static Stream * stream; 
     static int id;
+    static int id1; 
+    static int id2; 
 };
 
 #endif

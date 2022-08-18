@@ -82,6 +82,8 @@
 #undef ONACTIVATE
 #undef ONACTIVATEL
 #undef ONAMBER
+#undef ONBLOCKENTER
+#undef ONBLOCKEXIT
 #undef ONDEACTIVATE
 #undef ONDEACTIVATEL 
 #undef ONCLOSE
@@ -192,6 +194,8 @@
 #define ONACTIVATE(addr,subaddr)
 #define ONACTIVATEL(linear)
 #define ONAMBER(signal_id) 
+#define ONBLOCKENTER(blockid) 
+#define ONBLOCKEXIT(blockid) 
 #define ONDEACTIVATE(addr,subaddr)
 #define ONDEACTIVATEL(linear) 
 #define ONCLOSE(turnout_id)

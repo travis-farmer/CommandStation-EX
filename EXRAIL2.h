@@ -54,6 +54,7 @@ enum OPCODE : byte {OPCODE_THROW,OPCODE_CLOSE,
              OPCODE_ENDTASK,OPCODE_ENDEXRAIL,
              OPCODE_SET_TRACK,
              OPCODE_ONRED,OPCODE_ONAMBER,OPCODE_ONGREEN,
+             OPCODE_ONBLOCKENTER,OPCODE_ONBLOCKEXIT,
 
              // OPcodes below this point are skip-nesting IF operations
              // placed here so that they may be skipped as a group
@@ -107,6 +108,8 @@ class LookList {
     static void createNewTask(int route, uint16_t cab);
     static void turnoutEvent(int16_t id, bool closed);  
     static void activateEvent(int16_t addr, bool active);
+    static void blockEvent(int16_t blockId, int16_t locoid, bool enterBlock);
+    
     static const int16_t SERVO_SIGNAL_FLAG=0x4000;
     static const int16_t ACTIVE_HIGH_SIGNAL_FLAG=0x2000;
     static const int16_t DCC_SIGNAL_FLAG=0x1000;
@@ -136,7 +139,7 @@ private:
     static void setTurnoutHiddenState(Turnout * t);
     static LookList* LookListLoader(OPCODE op1,
                       OPCODE op2=OPCODE_ENDEXRAIL,OPCODE op3=OPCODE_ENDEXRAIL);
-    static void handleEvent(const FSH* reason,LookList* handlers, int16_t id);
+    static RMFT2 * handleEvent(const FSH* reason,LookList* handlers, int16_t id);
     static RMFT2 * loopTask;
     static RMFT2 * pausingTask;
     void delayMe(long millisecs);
@@ -161,6 +164,8 @@ private:
    static LookList * onRedLookup;
    static LookList * onAmberLookup;
    static LookList * onGreenLookup;
+   static LookList * onBlockEnterLookup;
+   static LookList * onBlockExitLookup;
   
     
   // Local variables - exist for each instance/task 

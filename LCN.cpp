@@ -16,13 +16,17 @@
  *  You should have received a copy of the GNU General Public License
  *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
  */
-
+#include "defines.h"
 #include "LCN.h"
 #include "DIAG.h"
 #include "Turnouts.h"
 #include "Sensors.h"
+#include "EXRAIL2.h"
 
 int  LCN::id = 0;
+int  LCN::id1 = 0;
+int  LCN::id2 = 0;
+
 Stream * LCN::stream=NULL;
 bool LCN::firstLoop=true;
 
@@ -46,6 +50,12 @@ void LCN::loop() {
     if (ch >= 0 && ch <= '9') {  // accumulate id value
       id = 10 * id + ch - '0';
     }
+    else if (ch == ',') {
+      // push stack for new number
+      id2=id1;
+      id1=id;
+      id=0;
+    }
     else if (ch == 't' || ch == 'T') { // Turnout opcodes
       if (Diag::LCN) DIAG(F("LCN IN %d%c"),id,(char)ch);
       if (!Turnout::exists(id)) LCNTurnout::create(id);
@@ -63,6 +73,16 @@ void LCN::loop() {
       if (!ss) ss = Sensor::create(id, VPIN_NONE, 0); // impossible pin
       ss->setState(ch == 'S');
       id = 0;
+    }
+    else if (ch == 'k' || ch == 'K') {
+      // block enter id1 by loco id
+      if (Diag::LCN) DIAG(F("LCN IN %d,%d%c"),id1,id,(char)ch);
+       
+#ifdef EXRAIL_ACTIVE
+        // without EXrail, valid block commands are ignored
+        RMFT2::blockEvent(id1,id,ch=='K');
+#endif 
+        id=0; 
     }
     else  id = 0; // ignore any other garbage from LCN
   }

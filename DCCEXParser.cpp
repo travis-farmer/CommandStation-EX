@@ -343,6 +343,15 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
             return;
         break;
 
+    case 'k': // <k blockid cabid>  exiting block
+    case 'K': // <K blockid cabid> entering block
+        if (params!=2) break;
+#ifdef EXRAIL_ACTIVE
+        // without EXrail, valid block commands are ignored
+        RMFT2::blockEvent(p[0],p[1],opcode=='K');
+#endif  
+        return;          
+
     case 'w': // WRITE CV on MAIN <w CAB CV VALUE>
         DCC::writeCVByteMain(p[0], p[1], p[2]);
         return;
