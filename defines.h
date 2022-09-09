@@ -131,9 +131,9 @@
   #define DISABLE_EEPROM
 #endif
 // STM32 support for native I2C is awaiting development 
-#ifndef I2C_NO_INTERRUPTS
- #define I2C_NO_INTERRUPTS
-#endif
+// #ifndef I2C_NO_INTERRUPTS
+//  #define I2C_NO_INTERRUPTS
+// #endif
 
 
 /* TODO when ready 

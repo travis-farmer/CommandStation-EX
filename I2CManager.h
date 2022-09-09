@@ -112,7 +112,7 @@
  */
 
 // Add following line to config.h to enable Wire library instead of native I2C drivers
-//#define I2C_USE_WIRE
+#define I2C_USE_WIRE
 
 // Add following line to config.h to disable the use of interrupts by the native I2C drivers.
 //#define I2C_NO_INTERRUPTS

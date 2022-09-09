@@ -117,7 +117,9 @@ MotorDriver::MotorDriver(int16_t power_pin, byte signal_pin, byte signal_pin2, i
     senseOffset = adc1_get_raw(pinToADC1Channel(currentPin));
 #else
     pinMode(currentPin, INPUT);
-    senseOffset=analogRead(currentPin); // value of sensor at zero current
+    unsigned long usecs = micros();
+    senseOffset = analogRead(currentPin); // value of sensor at zero current
+    DIAG(F("delay was %ld\n"), (micros() - usecs));
 #endif
   }
 
