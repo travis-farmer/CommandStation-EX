@@ -216,8 +216,8 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
    StringFormatter::send(stream,F("PRT]\\[Routes}|{Route]\\[Set}|{2]\\[Handoff}|{4\nPRL"));
    for (byte pass=0;pass<2;pass++) {
       // first pass automations, second pass routes.
-    for (int ix=0;;ix++) {
-        int16_t id=GETFLASHW((pass?RMFT2::automationIdList:RMFT2::routeIdList)+ix);
+    for (int ix=0;;ix+=2) {
+        int16_t id=GETHIGHFLASHW((pass?RMFT2::automationIdList:RMFT2::routeIdList),ix);
         if (id==0) break;
         const FSH * desc=RMFT2::getRouteDescription(id);
         StringFormatter::send(stream,F("]\\[%c%d}|{%S}|{%c"),
@@ -297,8 +297,8 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
 	StringFormatter::send(stream,F("PPA%x\n"),TrackManager::getMainPower()==POWERMODE::ON);
 #ifdef EXRAIL_ACTIVE
   StringFormatter::send(stream,F("RL%d"), RMFT2::rosterNameCount);
-  for (int16_t r=0;r<RMFT2::rosterNameCount;r++) {
-      int16_t cabid=GETFLASHW(RMFT2::rosterIdList+r);
+  for (int16_t r=0;r<RMFT2::rosterNameCount;r+=2) {
+      int16_t cabid=GETHIGHFLASHW(RMFT2::rosterIdList,r);
       StringFormatter::send(stream,F("]\\[%S}|{%d}|{%c"),
       RMFT2::getRosterName(cabid),cabid,cabid<128?'S':'L');
   }

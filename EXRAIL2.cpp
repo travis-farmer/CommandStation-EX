@@ -91,8 +91,10 @@ LookList *  RMFT2::onRedLookup=NULL;
 LookList *  RMFT2::onAmberLookup=NULL;
 LookList *  RMFT2::onGreenLookup=NULL;
 
-#define GET_OPCODE GETFLASH(RMFT2::RouteCode+progCounter)
-#define GET_OPERAND(n) GETFLASHW(RMFT2::RouteCode+progCounter+1+(n*3))
+
+
+#define GET_OPCODE GETHIGHFLASH(RMFT2::RouteCode,progCounter)
+#define GET_OPERAND(n) GETHIGHFLASHW(RMFT2::RouteCode,progCounter+1+(n*3))
 #define SKIPOP progCounter+=3
 
 
@@ -141,6 +143,8 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 }
 
 /* static */ void RMFT2::begin() {
+  bool saved_diag=diag;
+  diag=true;
   DCCEXParser::setRMFTFilter(RMFT2::ComandFilter);
   for (int f=0;f<MAX_FLAGS;f++) flags[f]=0;
   
@@ -156,8 +160,8 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 
   // Second pass startup, define any turnouts or servos, set signals red
   // add sequences onRoutines to the lookups
-  for (int sigpos=0;;sigpos+=4) {
-    VPIN sigid=GETFLASHW(RMFT2::SignalDefinitions+sigpos);
+  for (int sigslot=0;;sigslot++) {
+    VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
     if (sigid==0) break;  // end of signal list
     doSignal(sigid & SIGNAL_ID_MASK, SIGNAL_RED);
   }
@@ -229,20 +233,22 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   DIAG(F("EXRAIL %db, fl=%d"),progCounter,MAX_FLAGS);
 
   new RMFT2(0); // add the startup route
+  diag=saved_diag;
 }
 
 void RMFT2::setTurnoutHiddenState(Turnout * t) {
+  // turnout descriptions are in low flash F strings 
   t->setHidden(GETFLASH(getTurnoutDescription(t->getId()))==0x01);     
 }
 
 char RMFT2::getRouteType(int16_t id) {
-  for (int16_t i=0;;i++) {
-    int16_t rid= GETFLASHW(routeIdList+i);
+  for (int16_t i=0;;i+=2) {
+    int16_t rid= GETHIGHFLASHW(routeIdList,i);
     if (rid==id) return 'R';
     if (rid==0) break;
   }
-  for (int16_t i=0;;i++) {
-    int16_t rid= GETFLASHW(automationIdList+i);
+  for (int16_t i=0;;i+=2) {
+    int16_t rid= GETHIGHFLASHW(automationIdList,i);
     if (rid==id) return 'A';
     if (rid==0) break;
   }
@@ -304,7 +310,7 @@ bool RMFT2::parseSlash(Print * stream, byte & paramCount, int16_t p[]) {
     // do the signals
     // flags[n] represents the state of the nth signal in the table 
     for (int sigslot=0;;sigslot++) {
-      VPIN sigid=GETFLASHW(RMFT2::SignalDefinitions+sigslot*4);
+      VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
       if (sigid==0) break; // end of signal list 
       byte flag=flags[sigslot] & SIGNAL_MASK; // obtain signal flags for this id
       StringFormatter::send(stream,F("\n%S[%d]"), 
@@ -982,8 +988,8 @@ void RMFT2::kill(const FSH * reason, int operand) {
 }
 
 int16_t RMFT2::getSignalSlot(int16_t id) {
-  for (int sigpos=0;;sigpos+=4) {
-      int16_t sigid=GETFLASHW(RMFT2::SignalDefinitions+sigpos);
+  for (int sigslot=0;;sigslot++) {
+      int16_t sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
       if (sigid==0) { // end of signal list 
         DIAG(F("EXRAIL Signal %d not defined"), id);
         return -1;
@@ -993,9 +999,10 @@ int16_t RMFT2::getSignalSlot(int16_t id) {
       // but for a servo signal it will also have SERVO_SIGNAL_FLAG set. 
 
       if ((sigid & SIGNAL_ID_MASK)!= id) continue; // keep looking
-      return sigpos/4; // relative slot in signals table
+      return sigslot; // relative slot in signals table
   }  
 }
+
 /* static */ void RMFT2::doSignal(int16_t id,char rag) {
   if (diag) DIAG(F(" doSignal %d %x"),id,rag);
   
@@ -1012,11 +1019,11 @@ int16_t RMFT2::getSignalSlot(int16_t id) {
   setFlag(sigslot,rag,SIGNAL_MASK);
  
   // Correct signal definition found, get the rag values
-  int16_t sigpos=sigslot*4; 
-  VPIN sigid=GETFLASHW(RMFT2::SignalDefinitions+sigpos);
-  VPIN redpin=GETFLASHW(RMFT2::SignalDefinitions+sigpos+1);
-  VPIN amberpin=GETFLASHW(RMFT2::SignalDefinitions+sigpos+2);
-  VPIN greenpin=GETFLASHW(RMFT2::SignalDefinitions+sigpos+3);
+  int16_t sigpos=sigslot*8; 
+  VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigpos);
+  VPIN redpin=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigpos+2);
+  VPIN amberpin=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigpos+4);
+  VPIN greenpin=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigpos+6);
   if (diag) DIAG(F("signal %d %d %d %d %d"),sigid,id,redpin,amberpin,greenpin);
 
   VPIN sigtype=sigid & ~SIGNAL_ID_MASK;

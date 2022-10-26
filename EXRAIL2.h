@@ -114,9 +114,9 @@ class LookList {
  
  // Throttle Info Access functions built by exrail macros 
   static const byte rosterNameCount;
-  static const int16_t FLASH routeIdList[];
-  static const int16_t FLASH automationIdList[];
-  static const int16_t FLASH rosterIdList[];
+  static const int16_t HIGHFLASH routeIdList[];
+  static const int16_t HIGHFLASH automationIdList[];
+  static const int16_t HIGHFLASH rosterIdList[];
   static const FSH *  getRouteDescription(int16_t id);
   static char   getRouteType(int16_t id);
   static const FSH *  getTurnoutDescription(int16_t id);
@@ -150,8 +150,8 @@ private:
     void printMessage2(const FSH * msg);
     
    static bool diag;
-   static const  FLASH  byte RouteCode[];
-   static const  FLASH  int16_t SignalDefinitions[];
+   static const  HIGHFLASH  byte RouteCode[];
+   static const  HIGHFLASH  int16_t SignalDefinitions[];
    static byte flags[MAX_FLAGS];
    static LookList * sequenceLookup;
    static LookList * onThrowLookup;

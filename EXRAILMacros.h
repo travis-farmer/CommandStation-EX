@@ -73,14 +73,14 @@ void exrailHalSetup() {
 #include "EXRAIL2MacroReset.h"
 #undef ROUTE
 #define ROUTE(id, description) id,
-const int16_t FLASH RMFT2::routeIdList[]= {
+const int16_t HIGHFLASH RMFT2::routeIdList[]= {
     #include "myAutomation.h"
     0}; 
 // Pass 2a create throttle automation list 
 #include "EXRAIL2MacroReset.h"
 #undef AUTOMATION
 #define AUTOMATION(id, description) id,
-const int16_t FLASH RMFT2::automationIdList[]= {
+const int16_t HIGHFLASH RMFT2::automationIdList[]= {
     #include "myAutomation.h"
     0}; 
 
@@ -158,7 +158,7 @@ const byte RMFT2::rosterNameCount=0
 #include "EXRAIL2MacroReset.h"
 #undef ROSTER
 #define ROSTER(cabid,name,funcmap...) cabid,
-const int16_t FLASH  RMFT2::rosterIdList[]={
+const int16_t HIGHFLASH  RMFT2::rosterIdList[]={
    #include "myAutomation.h"
    0};
 
@@ -198,7 +198,7 @@ const FSH * RMFT2::getRosterFunctions(int16_t id) {
 #undef VIRTUAL_SIGNAL
 #define VIRTUAL_SIGNAL(id) id,0,0,0,
 
-const  FLASH  int16_t RMFT2::SignalDefinitions[] = {
+const  HIGHFLASH  int16_t RMFT2::SignalDefinitions[] = {
     #include "myAutomation.h"
     0,0,0,0 };
 
@@ -323,7 +323,7 @@ const  FLASH  int16_t RMFT2::SignalDefinitions[] = {
 
 // Build RouteCode
 const int StringMacroTracker2=__COUNTER__;
-const  FLASH  byte RMFT2::RouteCode[] = {
+const  HIGHFLASH  byte RMFT2::RouteCode[] = {
     #include "myAutomation.h"
     OPCODE_ENDTASK,0,0,OPCODE_ENDEXRAIL,0,0 };
 
