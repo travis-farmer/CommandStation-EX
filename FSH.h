@@ -75,7 +75,7 @@ typedef char FSH;
 #define GETFLASHW(addr) ((*(const unsigned int8_t *)(addr)) | ((*(const unsigned int8_t *)(addr+1)) << 8))
 #define GETHIGHFLASH(data,offset) GETFLASH(((byte*)data)+(offset))
 #define GETHIGHFLASHW(data,offset) GETFLASHW(((byte*)data)+(offset))
-#define strlen_P strlen
-#define strcpy_P strcpy
+//#define strlen_P strlen
+//#define strcpy_P strcpy
 #endif
 #endif
