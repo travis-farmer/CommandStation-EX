@@ -41,6 +41,7 @@
   */
 
 #include <Arduino.h>
+#include "defines.h"
 #include "EXRAIL2.h"
 #include "DCC.h"
 #include "DCCWaveform.h"
@@ -143,6 +144,12 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 }
 
 /* static */ void RMFT2::begin() {
+
+  #if defined(ARDUINO_AVR_MEGA) || defined(ARDUINO_AVR_MEGA2560)
+      // AVR_MEGA memory position for diagnostic only
+    DIAG(F("EXRAIL RouteAddr=%l"),pgm_get_far_address(RMFT2::RouteCode));
+    #endif
+
   bool saved_diag=diag;
   diag=true;
   DCCEXParser::setRMFTFilter(RMFT2::ComandFilter);
