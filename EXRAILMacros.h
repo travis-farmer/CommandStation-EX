@@ -100,30 +100,48 @@ const FSH * RMFT2::getRouteDescription(int16_t id) {
 // Pass 4... Create Text sending functions
 #include "EXRAIL2MacroReset.h"
 const int StringMacroTracker1=__COUNTER__;
+#define THRUNGE(msg,mode) \
+     case (__COUNTER__ - StringMacroTracker1) : {\
+         static const char HIGHFLASH thrunge[]=msg;\
+         strfar=(uint32_t)pgm_get_far_address(thrunge);\
+         tmode=mode;\
+         break;\
+      } 
 #undef BROADCAST
-#define BROADCAST(msg) case (__COUNTER__ - StringMacroTracker1) : CommandDistributor::broadcastText(F(msg));break;
+#define BROADCAST(msg) THRUNGE(msg,thrunge_broadcast)
 #undef PARSE
-#define PARSE(msg) case (__COUNTER__ - StringMacroTracker1) : DCCEXParser::parse(F(msg));break;
+#define PARSE(msg) THRUNGE(msg,thrunge_parse)
 #undef PRINT
-#define PRINT(msg)    case (__COUNTER__ - StringMacroTracker1) : printMessage2(F(msg));break;
+#define PRINT(msg) THRUNGE(msg,thrunge_print)
 #undef LCN
-#define LCN(msg)      case (__COUNTER__ - StringMacroTracker1) : StringFormatter::send(&LCN_SERIAL,F(msg));break;
+#define LCN(msg)   THRUNGE(msg,thrunge_lcn)
 #undef SERIAL
-#define SERIAL(msg)   case (__COUNTER__ - StringMacroTracker1) : StringFormatter::send(&Serial,F(msg));break;
+#define SERIAL(msg)   THRUNGE(msg,thrunge_serial)
 #undef SERIAL1
-#define SERIAL1(msg)  case (__COUNTER__ - StringMacroTracker1) : StringFormatter::send(&Serial1,F(msg));break;
+#define SERIAL1(msg)  THRUNGE(msg,thrunge_serial1)
 #undef SERIAL2
-#define SERIAL2(msg)  case (__COUNTER__ - StringMacroTracker1) : StringFormatter::send(&Serial2,F(msg));break;
+#define SERIAL2(msg)  THRUNGE(msg,thrunge_serial2)
 #undef SERIAL3
-#define SERIAL3(msg)  case (__COUNTER__ - StringMacroTracker1) : StringFormatter::send(&Serial3,F(msg));break;
+#define SERIAL3(msg)  THRUNGE(msg,thrunge_serial3)
 #undef LCD
-#define LCD(id,msg)   case (__COUNTER__ - StringMacroTracker1) : StringFormatter::lcd(id,F(msg));break;
+#define LCD(id,msg)  \
+     case (__COUNTER__ - StringMacroTracker1) : {\
+         static const char HIGHFLASH thrunge[]=msg;\
+         strfar=(uint32_t)pgm_get_far_address(thrunge);\
+         tmode=thrunge_lcd; \
+         lcdid=id;\
+         break;\
+      } 
 
 void  RMFT2::printMessage(uint16_t id) { 
+  thrunger tmode;
+  uint32_t strfar=0;
+  byte lcdid=0; 
   switch(id) {
     #include "myAutomation.h"
     default: break ; 
   }
+  if (strfar) thrungeString(strfar,tmode,lcdid);
 }
 
 

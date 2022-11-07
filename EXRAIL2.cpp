@@ -1106,3 +1106,65 @@ void RMFT2::handleEvent(const FSH* reason,LookList* handlers, int16_t id) {
 void RMFT2::printMessage2(const FSH * msg) {
   DIAG(F("EXRAIL(%d) %S"),loco,msg);
 }
+static StringBuffer * buffer=NULL;
+/* thrungeString is used to stream a HIGHFLASH string to a suitable Serial
+and handle the oddities like LCD, BROADCAST and PARSE */    
+void RMFT2::thrungeString(uint32_t strfar, thrunger mode, byte id) {
+   //DIAG(F("thrunge addr=%l mode=%d id=%d"), strfar,mode,id);
+   Print * stream=NULL;
+   // Find out where the string is going 
+   switch (mode) {
+    case thrunge_print:
+         StringFormatter::send(&Serial,F("<* EXRAIL(%d) "),loco);
+         stream=&Serial;
+         break;
+
+    case thrunge_serial: stream=&Serial; break;  
+    case thrunge_serial1: stream=&Serial1; break;
+    case thrunge_serial2: stream=&Serial2; break;
+    case thrunge_serial3: stream=&Serial3; break;
+  // TODO  more serials for SAMx case thrunge_serial4: stream=&Serial4; break;
+    case thrunge_lcn: 
+      #if defined(LCN_SERIAL) 
+      stream=&LCN_SERIAL;
+      #endif
+       break;  
+    case thrunge_parse:
+    case thrunge_broadcast:
+    case thrunge_lcd:
+         if (!buffer) buffer=new StringBuffer();
+         buffer->flush();
+         stream=buffer;
+         break; 
+    }
+    if (!stream) return; 
+    
+    // if mega stream it out 
+    for (;;strfar++) {
+      char c=pgm_read_byte_far(strfar);
+      if (c=='\0') break;
+      stream->write(c);
+    }
+    // else other CPUs
+    //      stream.print((FSH *)strfar)
+    
+  // and decide what to do next
+   switch (mode) {
+    case thrunge_print:
+         StringFormatter::send(&Serial,F(" *>/n"));
+         break;
+    // TODO  more serials for SAMx case thrunge_serial4: stream=&Serial4; break;
+    case thrunge_parse: 
+      DCCEXParser::parseOne(&Serial,(byte*)buffer->getString(),NULL);
+      break;
+    case thrunge_broadcast:
+  // TODO     CommandDistributor::broadcastText(buffer->getString());
+      break;
+    case thrunge_lcd:
+         LCD(id,F("%s%"),buffer->getString());
+         break;
+
+     default: break;       
+    }
+}
+   

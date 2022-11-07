@@ -67,6 +67,11 @@ enum OPCODE : byte {OPCODE_THROW,OPCODE_CLOSE,
              OPCODE_IFCLOSED,OPCODE_IFTHROWN
              };
 
+enum thrunger: byte {
+  thrunge_print, thrunge_broadcast, thrunge_serial,thrunge_parse,
+  thrunge_serial1, thrunge_serial2, thrunge_serial3,
+  thrunge_lcd, thrunge_lcn};
+
 
  
   // Flag bits for status of hardware and TPL
@@ -111,7 +116,6 @@ class LookList {
     static const int16_t ACTIVE_HIGH_SIGNAL_FLAG=0x2000;
     static const int16_t DCC_SIGNAL_FLAG=0x1000;
     static const int16_t SIGNAL_ID_MASK=0x0FFF;
- 
  // Throttle Info Access functions built by exrail macros 
   static const byte rosterNameCount;
   static const int16_t HIGHFLASH routeIdList[];
@@ -148,6 +152,7 @@ private:
     void kill(const FSH * reason=NULL,int operand=0);          
     void printMessage(uint16_t id);  // Built by RMFTMacros.h
     void printMessage2(const FSH * msg);
+    void thrungeString(uint32_t strfar, thrunger mode, byte id=0);
     
    static bool diag;
    static const  HIGHFLASH  byte RouteCode[];
