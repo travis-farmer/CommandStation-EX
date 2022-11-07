@@ -214,16 +214,20 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
       exRailSent=true;
 #ifdef EXRAIL_ACTIVE
    StringFormatter::send(stream,F("PRT]\\[Routes}|{Route]\\[Set}|{2]\\[Handoff}|{4\nPRL"));
-   for (byte pass=0;pass<2;pass++) {
-      // first pass automations, second pass routes.
+    // first pass automations
     for (int ix=0;;ix+=2) {
-        int16_t id=GETHIGHFLASHW((pass?RMFT2::automationIdList:RMFT2::routeIdList),ix);
+        int16_t id =GETHIGHFLASHW(RMFT2::automationIdList,ix);
         if (id==0) break;
         const FSH * desc=RMFT2::getRouteDescription(id);
-        StringFormatter::send(stream,F("]\\[%c%d}|{%S}|{%c"),
-                      pass?'A':'R',id,desc, pass?'4':'2');
+        StringFormatter::send(stream,F("]\\[A%d}|{%S}|{4"),id,desc);
     }
-   }
+    // second pass routes.
+    for (int ix=0;;ix+=2) {
+        int16_t id=GETHIGHFLASHW(RMFT2::routeIdList,ix);
+        if (id==0) break;
+        const FSH * desc=RMFT2::getRouteDescription(id);
+        StringFormatter::send(stream,F("]\\[R%d}|{%S}|{2"),id,desc);
+    }
    StringFormatter::send(stream,F("\n"));
 #endif
       // allow heartbeat to slow down once all metadata sent     
