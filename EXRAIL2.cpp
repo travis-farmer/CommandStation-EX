@@ -92,12 +92,35 @@ LookList *  RMFT2::onRedLookup=NULL;
 LookList *  RMFT2::onAmberLookup=NULL;
 LookList *  RMFT2::onGreenLookup=NULL;
 
-
-
 #define GET_OPCODE GETHIGHFLASH(RMFT2::RouteCode,progCounter)
-#define GET_OPERAND(n) GETHIGHFLASHW(RMFT2::RouteCode,progCounter+1+(n*3))
 #define SKIPOP progCounter+=3
 
+// RouteCodeFar is a far pointer to flash on anything other than a uno/nano where it is just a near pointer to flash
+uint32_t RMFT2::RouteCodeFar;
+
+uint16_t RMFT2::getOperand2(uint32_t farAddr) {
+  #if defined(ARDUINO_AVR_MEGA) || defined(ARDUINO_AVR_MEGA2560)
+    // AVR_MEGA memory uses far pointers 
+    return pgm_read_word_far(farAddr);
+  #elif defined(ARDUINO_ARCH_AVR)
+    // UNO/NANO have no far memory
+    return pgm_read_word_near(farAddr);
+  #else 
+    // other cpus dont care but may be averse to reading an int16_tr at an odd byte boundary. 
+    const byte * op=farAddr;
+    return *op | (*(op+1) << 8);
+  #endif
+  }
+
+// getOperand instance version, uses progCounter from instance.
+uint16_t RMFT2::getOperand(byte n) {
+  return getOperand(progCounter,n);
+}
+
+// getOperand static version, must be provided prog counter from loop etc.
+uint16_t RMFT2::getOperand(int progCounter,byte n) {
+  return getOperand2(RouteCodeFar+progCounter+1+(n*3));
+}
 
 LookList::LookList(int16_t size) {
   m_size=size;
@@ -138,18 +161,16 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   for (progCounter=0;; SKIPOP) {
     byte opcode=GET_OPCODE;
     if (opcode==OPCODE_ENDEXRAIL) break;
-    if (opcode==op1 || opcode==op2 || opcode==op3)  list->add(GET_OPERAND(0),progCounter);   
+    if (opcode==op1 || opcode==op2 || opcode==op3)  list->add(getOperand(progCounter,0),progCounter);   
   }
   return list;
 }
 
 /* static */ void RMFT2::begin() {
 
-  #if defined(ARDUINO_AVR_MEGA) || defined(ARDUINO_AVR_MEGA2560)
-      // AVR_MEGA memory position for diagnostic only
-    DIAG(F("EXRAIL RouteAddr=%l"),pgm_get_far_address(RMFT2::RouteCode));
-    #endif
-
+  RouteCodeFar=GETFARPTR(RMFT2::RouteCode);
+  DIAG(F("EXRAIL RouteAddr=%l"),RouteCodeFar);
+    
   bool saved_diag=diag;
   diag=true;
   DCCEXParser::setRMFTFilter(RMFT2::ComandFilter);
@@ -177,7 +198,7 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   for (progCounter=0;; SKIPOP){
     byte opcode=GET_OPCODE;
     if (opcode==OPCODE_ENDEXRAIL) break;
-    VPIN operand=GET_OPERAND(0);
+    VPIN operand=getOperand(progCounter,0);
     
     switch (opcode) {
     case OPCODE_AT:
@@ -202,25 +223,25 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 
     case OPCODE_TURNOUT: {
       VPIN id=operand;
-      int addr=GET_OPERAND(1);
-      byte subAddr=GET_OPERAND(2);
+      int addr=getOperand(progCounter,1);
+      byte subAddr=getOperand(progCounter,2);
       setTurnoutHiddenState(DCCTurnout::create(id,addr,subAddr));
       break;
     }
 
     case OPCODE_SERVOTURNOUT: {
       VPIN id=operand;
-      VPIN pin=GET_OPERAND(1);
-      int activeAngle=GET_OPERAND(2);
-      int inactiveAngle=GET_OPERAND(3);
-      int profile=GET_OPERAND(4);
+      VPIN pin=getOperand(progCounter,1);
+      int activeAngle=getOperand(progCounter,2);
+      int inactiveAngle=getOperand(progCounter,3);
+      int profile=getOperand(progCounter,4);
       setTurnoutHiddenState(ServoTurnout::create(id,pin,activeAngle,inactiveAngle,profile));
       break;
     }
 
     case OPCODE_PINTURNOUT: {
       VPIN id=operand;
-      VPIN pin=GET_OPERAND(1);
+      VPIN pin=getOperand(progCounter,1);
       setTurnoutHiddenState(VpinTurnout::create(id,pin));
       break;
     }
@@ -564,7 +585,7 @@ void RMFT2::loop2() {
   if (delayTime!=0 && millis()-delayStart < delayTime) return;
 
   byte opcode = GET_OPCODE;
-  int16_t operand =  GET_OPERAND(0);
+  int16_t operand =  getOperand(0);
 
   // skipIf will get set to indicate a failing IF condition 
   bool skipIf=false; 
@@ -630,13 +651,13 @@ void RMFT2::loop2() {
     
   case OPCODE_ATGTE: // wait for analog sensor>= value
     timeoutFlag=false;
-    if (IODevice::readAnalogue(operand) >= (int)(GET_OPERAND(1))) break;
+    if (IODevice::readAnalogue(operand) >= (int)(getOperand(1))) break;
     delayMe(50);
     return;
     
   case OPCODE_ATLT: // wait for analog sensor < value
     timeoutFlag=false;
-    if (IODevice::readAnalogue(operand) < (int)(GET_OPERAND(1))) break;
+    if (IODevice::readAnalogue(operand) < (int)(getOperand(1))) break;
     delayMe(50);
     return;
       
@@ -647,7 +668,7 @@ void RMFT2::loop2() {
     
   case OPCODE_ATTIMEOUT2:
     if (readSensor(operand)) break; // success without timeout
-    if (millis()-timeoutStart > 100*GET_OPERAND(1)) {
+    if (millis()-timeoutStart > 100*getOperand(1)) {
       timeoutFlag=true;
       break; // and drop through
     }
@@ -690,7 +711,7 @@ void RMFT2::loop2() {
     break;
     
   case OPCODE_POM:
-    if (loco) DCC::writeCVByteMain(loco, operand, GET_OPERAND(1));
+    if (loco) DCC::writeCVByteMain(loco, operand, getOperand(1));
     break;
     
   case OPCODE_POWEROFF:
@@ -724,11 +745,11 @@ void RMFT2::loop2() {
     break;
     
   case OPCODE_IFGTE: // do next operand if sensor>= value
-    skipIf=IODevice::readAnalogue(operand)<(int)(GET_OPERAND(1));
+    skipIf=IODevice::readAnalogue(operand)<(int)(getOperand(1));
     break;
     
   case OPCODE_IFLT: // do next operand if sensor< value
-    skipIf=IODevice::readAnalogue(operand)>=(int)(GET_OPERAND(1));
+    skipIf=IODevice::readAnalogue(operand)>=(int)(getOperand(1));
     break;
     
   case OPCODE_IFNOT: // do next operand if sensor not set
@@ -811,11 +832,11 @@ void RMFT2::loop2() {
     }
     
   case OPCODE_XFON:
-    DCC::setFn(operand,GET_OPERAND(1),true);
+    DCC::setFn(operand,getOperand(1),true);
     break;
     
   case OPCODE_XFOFF:
-    DCC::setFn(operand,GET_OPERAND(1),false);
+    DCC::setFn(operand,getOperand(1),false);
     break;
     
   case OPCODE_DCCACTIVATE: {
@@ -907,7 +928,7 @@ void RMFT2::loop2() {
     
   case OPCODE_SENDLOCO:  // cab, route
     {
-      int newPc=sequenceLookup->find(GET_OPERAND(1));
+      int newPc=sequenceLookup->find(getOperand(1));
       if (newPc<0) break;
       RMFT2* newtask=new RMFT2(newPc); // create new task
       newtask->loco=operand;
@@ -925,7 +946,7 @@ void RMFT2::loop2() {
     
     
   case OPCODE_SERVO: // OPCODE_SERVO,V(vpin),OPCODE_PAD,V(position),OPCODE_PAD,V(profile),OPCODE_PAD,V(duration)
-    IODevice::writeAnalogue(operand,GET_OPERAND(1),GET_OPERAND(2),GET_OPERAND(3));
+    IODevice::writeAnalogue(operand,getOperand(1),getOperand(2),getOperand(3));
     break;
     
   case OPCODE_WAITFOR: // OPCODE_SERVO,V(pin)
@@ -1139,19 +1160,23 @@ void RMFT2::thrungeString(uint32_t strfar, thrunger mode, byte id) {
     }
     if (!stream) return; 
     
+     #if defined(ARDUINO_AVR_MEGA) || defined(ARDUINO_AVR_MEGA2560)
     // if mega stream it out 
     for (;;strfar++) {
       char c=pgm_read_byte_far(strfar);
       if (c=='\0') break;
       stream->write(c);
     }
-    // else other CPUs
-    //      stream.print((FSH *)strfar)
-    
+    #else
+    // UNO/NANO CPUs dont have high memory
+    // 32 bit cpus dont care anyway
+    stream.print((FSH *)strfar)
+    #endif
+
   // and decide what to do next
    switch (mode) {
     case thrunge_print:
-         StringFormatter::send(&Serial,F(" *>/n"));
+         StringFormatter::send(&Serial,F(" *>\n"));
          break;
     // TODO  more serials for SAMx case thrunge_serial4: stream=&Serial4; break;
     case thrunge_parse: 
@@ -1161,7 +1186,7 @@ void RMFT2::thrungeString(uint32_t strfar, thrunger mode, byte id) {
   // TODO     CommandDistributor::broadcastText(buffer->getString());
       break;
     case thrunge_lcd:
-         LCD(id,F("%s%"),buffer->getString());
+         LCD(id,F("%s"),buffer->getString());
          break;
 
      default: break;       
