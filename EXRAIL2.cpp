@@ -107,7 +107,7 @@ uint16_t RMFT2::getOperand2(uint32_t farAddr) {
     return pgm_read_word_near(farAddr);
   #else 
     // other cpus dont care but may be averse to reading an int16_tr at an odd byte boundary. 
-    const byte * op=farAddr;
+    const byte * op=(const byte *)farAddr;
     return *op | (*(op+1) << 8);
   #endif
   }
@@ -995,7 +995,7 @@ void RMFT2::delayMe(long delay) {
   delayStart=millis();
 }
 
-boolean RMFT2::setFlag(VPIN id,byte onMask, byte offMask) {
+bool RMFT2::setFlag(VPIN id,byte onMask, byte offMask) {
    if (FLAGOVERFLOW(id)) return false; // Outside range limit
    byte f=flags[id];
    f &= ~offMask;

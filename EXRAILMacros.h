@@ -103,7 +103,7 @@ const int StringMacroTracker1=__COUNTER__;
 #define THRUNGE(msg,mode) \
      case (__COUNTER__ - StringMacroTracker1) : {\
          static const char HIGHFLASH thrunge[]=msg;\
-         strfar=(uint32_t)pgm_get_far_address(thrunge);\
+         strfar=(uint32_t)GETFARPTR(thrunge);\
          tmode=mode;\
          break;\
       } 
@@ -133,7 +133,7 @@ const int StringMacroTracker1=__COUNTER__;
 #define LCD(id,msg)  \
      case (__COUNTER__ - StringMacroTracker1) : {\
          static const char HIGHFLASH thrunge[]=msg;\
-         strfar=(uint32_t)pgm_get_far_address(thrunge);\
+         strfar=(uint32_t)GETFARPTR(thrunge);\
          tmode=thrunge_lcd; \
          lcdid=id;\
          break;\
