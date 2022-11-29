@@ -59,7 +59,7 @@ typedef __FlashStringHelper FSH;
 // AVR_UNO/NANO runtime does not support _far functions so just use _near equivalent
 // as there is no progmem above 32kb anyway.
 #define HIGHFLASH PROGMEM
-#define GETFARPTR(data) ((const byte *)(data))
+#define GETFARPTR(data) ((uint32_t)(data))
 #define GETHIGHFLASH(data,offset) pgm_read_byte_near(GETFARPTR(data)+(offset))
 #define GETHIGHFLASHW(data,offset) pgm_read_word_near(GETFARPTR(data)+(offset))
 #endif
@@ -69,11 +69,14 @@ typedef __FlashStringHelper FSH;
 #ifdef F
   #undef F
 #endif
+#ifdef FLASH
+  #undef FLASH
+#endif
 #define F(str) (str)
 typedef char FSH; 
 #define FLASH
 #define HIGHFLASH
-#define GETFARPTR(data) ((const byte *)(data))
+#define GETFARPTR(data) ((uint32_t)(data))
 #define GETFLASH(addr) (*(const byte *)(addr))
 #define GETHIGHFLASH(data,offset)  (*(const byte *)(GETFARPTR(data)+offset))
 #define GETHIGHFLASHW(data,offset) (*(const uint16_t *)(GETFARPTR(data)+offset))

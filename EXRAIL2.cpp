@@ -1141,9 +1141,36 @@ void RMFT2::thrungeString(uint32_t strfar, thrunger mode, byte id) {
          break;
 
     case thrunge_serial: stream=&Serial; break;  
-    case thrunge_serial1: stream=&Serial1; break;
-    case thrunge_serial2: stream=&Serial2; break;
-    case thrunge_serial3: stream=&Serial3; break;
+    case thrunge_serial1: 
+         #ifdef SERIAL1_COMMANDS
+         stream=&Serial1; 
+         #endif
+         break;
+    case thrunge_serial2: 
+         #ifdef SERIAL2_COMMANDS
+         stream=&Serial2; 
+         #endif
+         break;
+    case thrunge_serial3: 
+         #ifdef SERIAL3_COMMANDS
+         stream=&Serial3; 
+         #endif
+         break;
+    case thrunge_serial4: 
+         #ifdef SERIAL4_COMMANDS
+         stream=&Serial4; 
+         #endif
+         break;
+    case thrunge_serial5: 
+         #ifdef SERIAL5_COMMANDS
+         stream=&Serial5; 
+         #endif
+         break;
+   case thrunge_serial6: 
+         #ifdef SERIAL6_COMMANDS
+         stream=&Serial6; 
+         #endif
+         break;
   // TODO  more serials for SAMx case thrunge_serial4: stream=&Serial4; break;
     case thrunge_lcn: 
       #if defined(LCN_SERIAL) 
@@ -1170,7 +1197,7 @@ void RMFT2::thrungeString(uint32_t strfar, thrunger mode, byte id) {
     #else
     // UNO/NANO CPUs dont have high memory
     // 32 bit cpus dont care anyway
-    stream.print((FSH *)strfar)
+    stream->print((FSH *)strfar);
     #endif
 
   // and decide what to do next

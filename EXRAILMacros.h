@@ -123,6 +123,12 @@ const int StringMacroTracker1=__COUNTER__;
 #define SERIAL2(msg)  THRUNGE(msg,thrunge_serial2)
 #undef SERIAL3
 #define SERIAL3(msg)  THRUNGE(msg,thrunge_serial3)
+#undef SERIAL4
+#define SERIAL4(msg)  THRUNGE(msg,thrunge_serial4)
+#undef SERIAL5
+#define SERIAL5(msg)  THRUNGE(msg,thrunge_serial5)
+#undef SERIAL6
+#define SERIAL6(msg)  THRUNGE(msg,thrunge_serial6)
 #undef LCD
 #define LCD(id,msg)  \
      case (__COUNTER__ - StringMacroTracker1) : {\
@@ -317,6 +323,9 @@ const  HIGHFLASH  int16_t RMFT2::SignalDefinitions[] = {
 #define SERIAL1(msg) PRINT(msg)
 #define SERIAL2(msg) PRINT(msg)
 #define SERIAL3(msg) PRINT(msg)
+#define SERIAL4(msg) PRINT(msg)
+#define SERIAL5(msg) PRINT(msg)
+#define SERIAL6(msg) PRINT(msg)
 #define SERVO(id,position,profile) OPCODE_SERVO,V(id),OPCODE_PAD,V(position),OPCODE_PAD,V(PCA9685::profile),OPCODE_PAD,V(0),
 #define SERVO2(id,position,ms) OPCODE_SERVO,V(id),OPCODE_PAD,V(position),OPCODE_PAD,V(PCA9685::Instant),OPCODE_PAD,V(ms/100L),
 #define SERVO_SIGNAL(vpin,redpos,amberpos,greenpos)
