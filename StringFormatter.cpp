@@ -168,7 +168,7 @@ void StringFormatter::printEscape(Print * stream, char c) {
      case '\r': stream->print(F("\\r")); break; 
      case '\0': stream->print(F("\\0")); return; 
      case '\t': stream->print(F("\\t")); break;
-     case '\\': stream->print(F("\\")); break;
+     case '\\': stream->print(F("\\\\")); break;
      default: stream->print(c);
   }
  }
