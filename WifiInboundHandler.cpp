@@ -95,7 +95,7 @@ void WifiInboundHandler::loop1() {
 
 WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
   while (wifiStream->available()) {
-    int ch = wifiStream->read();
+    char ch = wifiStream->read();
 
     // echo the char to the diagnostic stream in escaped format
     if (Diag::WIFI) {
@@ -116,7 +116,7 @@ WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
            for (int i=0;i<currentReplySize;i++) {
              int cout=outboundRing->read();
              wifiStream->write(cout);
-             if (Diag::WIFI) StringFormatter::printEscape(cout); // DIAG in disguise
+             if (Diag::WIFI) StringFormatter::printEscape((char)cout); // DIAG in disguise
            }
            clientPendingCIPSEND=-1;
            pendingCipsend=false;

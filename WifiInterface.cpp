@@ -177,7 +177,7 @@ wifiSerialState WifiInterface::setup2(const FSH* SSid, const FSH* password,
   StringFormatter::send(wifiStream, F("AT+CWJAP_CUR?\r\n"));
   if (!(checkForOK(2000, true))) {
       oldCmd=true;
-      while (wifiStream->available()) StringFormatter::printEscape( wifiStream->read()); /// THIS IS A DIAG IN DISGUISE
+      while (wifiStream->available()) StringFormatter::printEscape( (char)(wifiStream->read())); /// THIS IS A DIAG IN DISGUISE
   }
 
   StringFormatter::send(wifiStream, F("AT+CWMODE%s=1\r\n"), oldCmd ? "" : "_CUR"); // configure as "station" = WiFi client
@@ -237,7 +237,7 @@ wifiSerialState WifiInterface::setup2(const FSH* SSid, const FSH* password,
       StringFormatter::send(wifiStream, F("AT+CWMODE%s=2\r\n"), oldCmd ? "" : "_CUR"); 
     } while (!checkForOK(1000+i*500, true) && i++<10);
 
-    while (wifiStream->available()) StringFormatter::printEscape( wifiStream->read()); /// THIS IS A DIAG IN DISGUISE
+    while (wifiStream->available()) StringFormatter::printEscape( (char)(wifiStream->read())); /// THIS IS A DIAG IN DISGUISE
 
     // Figure out MAC addr
     StringFormatter::send(wifiStream, F("AT+CIFSR\r\n")); // not TOMATO
@@ -303,7 +303,7 @@ wifiSerialState WifiInterface::setup2(const FSH* SSid, const FSH* password,
     for(byte ipLen=0;ipLen<MAX_IP_LENGTH;ipLen++) {
       while(!wifiStream->available());
       int ipChar=wifiStream->read();
-      StringFormatter::printEscape(ipChar);
+      StringFormatter::printEscape((char)ipChar);
       if (ipChar=='"') {
         ipString[ipLen]='\0';
         break;
@@ -380,7 +380,7 @@ bool WifiInterface::checkForOK( const unsigned int timeout, const FSH * waitfor,
     while (wifiStream->available()) {
       int ch = wifiStream->read();
       if (echo) {
-        if (escapeEcho) StringFormatter::printEscape( ch); /// THIS IS A DIAG IN DISGUISE
+        if (escapeEcho) StringFormatter::printEscape( (char)ch); /// THIS IS A DIAG IN DISGUISE
         else USB_SERIAL.print((char)ch); 
       }
       if (ch != GETFLASH(locator)) locator = (char *)waitfor;

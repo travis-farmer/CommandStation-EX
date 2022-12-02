@@ -4,7 +4,7 @@
 #include "StringFormatter.h"
 
 
-#define VERSION "4.2.7"
+#define VERSION "4.2.7a"
 // 4.2.6 FIX: Remove RAM thief
 //       FIX: ADC port 8-15 fix
 // 4.2.5 Make GETFLASHW code more universal
