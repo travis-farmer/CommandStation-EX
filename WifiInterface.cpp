@@ -348,7 +348,7 @@ void WifiInterface::ATCommand(HardwareSerial * stream,const byte * command) {
         if (cx=='\n' || cx=='\r') startOfLine=true; 
         else if (startOfLine && cx=='!')  break;
         else startOfLine=false; 
-        stream->write(cx);
+        //stream->write(cx);
         wifiStream->write(cx);  
       }
     }
