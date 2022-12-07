@@ -124,16 +124,16 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
   if (Diag::WITHROTTLE) DIAG(F("%l WiThrottle(%d)<-[%e]"),millis(),clientid,cmd);
   
   // On first few commands, send turnout, roster and routes 
-  
-  if (!turnoutsSent) sendTurnouts(stream);
-  else if(!rosterSent) sendRoster(stream);
-  else if (!routesSent) sendRoutes(stream);
-  else if (!heartrateSent) {
-       heartrateSent=true;
-      // allow heartbeat to slow down once all metadata sent     
-      StringFormatter::send(stream,F("*%d\n"),HEARTBEAT_SECONDS);
+  if (introSent) {  
+    if (!turnoutsSent) sendTurnouts(stream);
+    else if(!rosterSent) sendRoster(stream);
+    else if (!routesSent) sendRoutes(stream);
+    else if (!heartrateSent) {
+         heartrateSent=true;
+        // allow heartbeat to slow down once all metadata sent     
+        StringFormatter::send(stream,F("*%d\n"),HEARTBEAT_SECONDS);
+    }
   }
-  
   
   while (cmd[0]) {
     switch (cmd[0]) {
@@ -194,13 +194,7 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
       break;
     case 'H': // send initial connection info after receiving "HU" message
       if (cmd[1] == 'U') {    
-  StringFormatter::send(stream,F("VN2.0\nHTDCC-EX\nRL0\n"));
-	StringFormatter::send(stream,F("HtDCC-EX v%S, %S, %S, %S\n"), F(VERSION), F(ARDUINO_TYPE), DCC::getMotorShieldName(), F(GITHUB_SHA));
-	StringFormatter::send(stream,F("PTT]\\[Turnouts}|{Turnout]\\[THROW}|{2]\\[CLOSE}|{4\n"));
-	StringFormatter::send(stream,F("PPA%x\n"),TrackManager::getMainPower()==POWERMODE::ON);     
-	// set heartbeat to 5 seconds because we need to sync the metadata (1 second is too short!)
-  StringFormatter::send(stream,F("*%d\n"), HEARTBEAT_SECONDS/2);
-	
+      sendIntro(stream);	
       }
       break;           
     case 'Q': // 
@@ -498,6 +492,16 @@ void WiThrottle::getLocoCallback(int16_t locoid) {
   DIAG(F("LocoCallback commit success"));
   stashStream->commit();
   CommandDistributor::broadcastPower();
+}
+
+void WiThrottle::sendIntro(Print* stream) {
+  introSent=true; 
+  StringFormatter::send(stream,F("VN2.0\nHTDCC-EX\nRL0\n"));
+	StringFormatter::send(stream,F("HtDCC-EX v%S, %S, %S, %S\n"), F(VERSION), F(ARDUINO_TYPE), DCC::getMotorShieldName(), F(GITHUB_SHA));
+	StringFormatter::send(stream,F("PTT]\\[Turnouts}|{Turnout]\\[THROW}|{2]\\[CLOSE}|{4\n"));
+	StringFormatter::send(stream,F("PPA%x\n"),TrackManager::getMainPower()==POWERMODE::ON);     
+	// set heartbeat to 5 seconds because we need to sync the metadata (1 second is too short!)
+  StringFormatter::send(stream,F("*%d\n"), HEARTBEAT_SECONDS/2);
 }
 
 void WiThrottle::sendTurnouts(Print* stream) {

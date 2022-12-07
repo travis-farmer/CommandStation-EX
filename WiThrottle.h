@@ -61,6 +61,7 @@ class WiThrottle {
       MYLOCO myLocos[MAX_MY_LOCO];   
       bool heartBeatEnable;
       unsigned long heartBeat;
+      bool introSent=false; 
       bool turnoutsSent=false; 
       bool rosterSent=false; 
       bool routesSent=false; 
@@ -75,6 +76,7 @@ class WiThrottle {
       void accessory(RingStream *, byte* cmd);
       void checkHeartbeat(RingStream * stream); 
       void markForBroadcast2(int cab);
+      void sendIntro(Print * stream);
       void sendTurnouts(Print * stream);
       void sendRoster(Print * stream);
       void sendRoutes(Print * stream);
