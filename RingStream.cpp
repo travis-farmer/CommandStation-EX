@@ -65,6 +65,13 @@ int RingStream::availableForWrite()  {
   }
 
 size_t RingStream::printFlash(const FSH * flashBuffer) {
+  // This function does not work on a 32 bit processor where the runtime
+  // sometimes misrepresents the pointer size in uintptr_t.
+  // In any case its not really necessary in a 32 bit processor because
+  // we have adequate ram. 
+  if (sizeof(void*)>2) return print(flashBuffer);
+
+
 // We are about to add a PROGMEM string to the buffer. 
 // To save RAM we can insert a marker and the
 // progmem address into the buffer instead.
@@ -107,8 +114,11 @@ int RingStream::read() {
   if ((_pos_read==_pos_write) && !_overflow) return -1;  // empty  
   byte b=readRawByte();
   if (b!=FLASH_INSERT_MARKER) return b; 
-#ifndef ARDUINO_ARCH_ESP32
   // Detected a flash insert 
+  if (sizeof(void*)>2) {
+    DIAG(F("Detected invalid flash insert marker at pos %d"),_pos_read);
+    return '?';
+  }
   // read address bytes LSB first (size depends on CPU) 
   uintptr_t iFlash=0; 
   for (byte f=0; f<sizeof(iFlash); f++) {
@@ -120,10 +130,6 @@ int RingStream::read() {
   _flashInsert=reinterpret_cast<char * >( iFlash);
   // and try again... so will read the first byte of the insert. 
   return read();
-#else
-  DIAG(F("Detected flash insert marker at pos %d but there should not be one"),_pos_read);
-  return '\0';
-#endif
 }
 
 byte RingStream::readRawByte() {

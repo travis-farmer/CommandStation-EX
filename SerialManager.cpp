@@ -102,7 +102,9 @@ void SerialManager::loop() {
 
 void SerialManager::loop2() {
     while (serial->available()) {
-        char ch = serial->read();
+        int intch=serial->read();
+        if (intch<0) break;
+        char ch = (char)intch;
         if (ch == '<') {
             inCommandPayload = true;
             bufferLength = 0;

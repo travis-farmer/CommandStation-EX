@@ -124,52 +124,69 @@ void setup()
   #endif
   LCD(3, F("Ready"));
   CommandDistributor::broadcastPower();
+  Diag::WIFI=true;
 }
 
 void loop()
 {
+  static bool XX=true;
+  if (XX) DIAG(F("loop 1"));
   // The main sketch has responsibilities during loop()
 
   // Responsibility 1: Handle DCC background processes
   //                   (loco reminders and power checks)
   DCC::loop();
-
+if (XX) DIAG(F("loop 2"));
   // Responsibility 2: handle any incoming commands on USB connection
   SerialManager::loop();
-
+if (XX) DIAG(F("loop 3"));
   // Responsibility 3: Optionally handle any incoming WiFi traffic
 #ifndef ARDUINO_ARCH_ESP32
 #if WIFI_ON
+if (XX) DIAG(F("loop 4"));
   WifiInterface::loop();
 #endif //WIFI_ON
 #else  //ARDUINO_ARCH_ESP32
 #ifndef WIFI_TASK_ON_CORE0
+  if (XX) DIAG(F("loop 5"));
   WifiESP::loop();
 #endif
 #endif //ARDUINO_ARCH_ESP32
 #if ETHERNET_ON
+  if (XX) DIAG(F("loop 6"));
   EthernetInterface::loop();
 #endif
+  if (XX) DIAG(F("loop 7"));
 
   RMFT::loop();  // ignored if no automation
+  if (XX) DIAG(F("loop 8"));
 
   #if defined(LCN_SERIAL)
   LCN::loop();
+  if (XX) DIAG(F("loop 9"));
+
   #endif
 
   LCDDisplay::loop();  // ignored if LCD not in use
+  if (XX) DIAG(F("loop A"));
 
   // Handle/update IO devices.
   IODevice::loop();
+  if (XX) DIAG(F("loop B"));
 
   Sensor::checkAll(); // Update and print changes
+  if (XX) DIAG(F("loop C"));
 
   // Report any decrease in memory (will automatically trigger on first call)
   static int ramLowWatermark = __INT_MAX__; // replaced on first loop
 
   int freeNow = DCCTimer::getMinimumFreeMemory();
+  if (XX) DIAG(F("loop D"));
+
   if (freeNow < ramLowWatermark) {
     ramLowWatermark = freeNow;
     LCD(3,F("Free RAM=%5db"), ramLowWatermark);
   }
+    if (XX) DIAG(F("loop E"));
+  XX=false;
 }

@@ -143,7 +143,6 @@ private:
                       OPCODE op2=OPCODE_ENDEXRAIL,OPCODE op3=OPCODE_ENDEXRAIL);
     static void handleEvent(const FSH* reason,LookList* handlers, int16_t id);
     static uint16_t getOperand(int progCounter,byte n);
-    static uint16_t getOperand2(uint32_t farAddr);
     static RMFT2 * loopTask;
     static RMFT2 * pausingTask;
     void delayMe(long millisecs);
@@ -170,8 +169,6 @@ private:
    static LookList * onRedLookup;
    static LookList * onAmberLookup;
    static LookList * onGreenLookup;
-  // RouteCodeFar is a far pointer to RouteCode flash on anything other than a uno/nano where it is just a near pointer to flash
-  static uint32_t RouteCodeFar;
     
   // Local variables - exist for each instance/task 
     RMFT2 *next;   // loop chain 

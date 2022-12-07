@@ -61,10 +61,11 @@ class WiThrottle {
       MYLOCO myLocos[MAX_MY_LOCO];   
       bool heartBeatEnable;
       unsigned long heartBeat;
-      bool initSent; // valid connection established
-      bool exRailSent; // valid connection established
+      bool turnoutsSent=false; 
+      bool rosterSent=false; 
+      bool routesSent=false; 
+      bool heartrateSent=false;
       uint16_t mostRecentCab;
-      int turnoutListHash;  // used to check for changes to turnout list
       bool lastPowerState;  // last power state sent to this client
 
       int DCCToWiTSpeed(int DCCSpeed);
@@ -74,6 +75,10 @@ class WiThrottle {
       void accessory(RingStream *, byte* cmd);
       void checkHeartbeat(RingStream * stream); 
       void markForBroadcast2(int cab);
+      void sendTurnouts(Print * stream);
+      void sendRoster(Print * stream);
+      void sendRoutes(Print * stream);
+      void sendFunctions(Print* stream, byte loco);
        // callback stuff to support prog track acquire
        static RingStream * stashStream;
        static WiThrottle * stashInstance;

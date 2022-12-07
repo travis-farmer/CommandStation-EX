@@ -95,23 +95,6 @@ LookList *  RMFT2::onGreenLookup=NULL;
 #define GET_OPCODE GETHIGHFLASH(RMFT2::RouteCode,progCounter)
 #define SKIPOP progCounter+=3
 
-// RouteCodeFar is a far pointer to flash on anything other than a uno/nano where it is just a near pointer to flash
-uint32_t RMFT2::RouteCodeFar;
-
-uint16_t RMFT2::getOperand2(uint32_t farAddr) {
-  #if defined(ARDUINO_AVR_MEGA) || defined(ARDUINO_AVR_MEGA2560)
-    // AVR_MEGA memory uses far pointers 
-    return pgm_read_word_far(farAddr);
-  #elif defined(ARDUINO_ARCH_AVR)
-    // UNO/NANO have no far memory
-    return pgm_read_word_near(farAddr);
-  #else 
-    // other cpus dont care but may be averse to reading an int16_tr at an odd byte boundary. 
-    const byte * op=(const byte *)farAddr;
-    return *op | (*(op+1) << 8);
-  #endif
-  }
-
 // getOperand instance version, uses progCounter from instance.
 uint16_t RMFT2::getOperand(byte n) {
   return getOperand(progCounter,n);
@@ -119,7 +102,13 @@ uint16_t RMFT2::getOperand(byte n) {
 
 // getOperand static version, must be provided prog counter from loop etc.
 uint16_t RMFT2::getOperand(int progCounter,byte n) {
-  return getOperand2(RouteCodeFar+progCounter+1+(n*3));
+  int offset=progCounter+1+(n*3);
+  if (offset&1) {
+       byte lsb=GETHIGHFLASH(RouteCode,offset);
+       byte msb=GETHIGHFLASH(RouteCode,offset+1);
+       return msb<<8|lsb;
+  }
+  return GETHIGHFLASHW(RouteCode,offset);
 }
 
 LookList::LookList(int16_t size) {
@@ -168,8 +157,7 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 
 /* static */ void RMFT2::begin() {
 
-  RouteCodeFar=GETFARPTR(RMFT2::RouteCode);
-  DIAG(F("EXRAIL RouteAddr=%l"),RouteCodeFar);
+  DIAG(F("EXRAIL RoutCode at =%P"),RouteCode);
     
   bool saved_diag=diag;
   diag=true;

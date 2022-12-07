@@ -31,6 +31,7 @@ WifiInboundHandler * WifiInboundHandler::singleton;
 
 void WifiInboundHandler::setup(Stream * ESStream) {
   singleton=new WifiInboundHandler(ESStream);
+  // DIAG(F("WifiInbound Setup2 %P %P"), ESStream,singleton);
 }
 
 void WifiInboundHandler::loop() {
@@ -44,6 +45,7 @@ WifiInboundHandler::WifiInboundHandler(Stream * ESStream) {
   inboundRing=new RingStream(INBOUND_RING);
   outboundRing=new RingStream(OUTBOUND_RING);
   pendingCipsend=false;
+  // DIAG(F("WifiInbound setup1 %P"), wifiStream);
 } 
 
 
@@ -51,11 +53,19 @@ WifiInboundHandler::WifiInboundHandler(Stream * ESStream) {
 // +IPD,x,lll:data is stored in streamer[x]
 // Other input returns  
 void WifiInboundHandler::loop1() {
+   static bool XX=true;
+   if (XX) DIAG(F("Wifi 1"));
+
    // First handle all inbound traffic events because they will block the sending 
-   if (loop2()!=INBOUND_IDLE) return;
+   if (loop2()!=INBOUND_IDLE) {
+       if (XX) DIAG(F("Wifi 2"));
+      return;
+   }
+if (XX) DIAG(F("Wifi 3"));
 
    WiThrottle::loop(outboundRing);
-   
+ if (XX) DIAG(F("Wifi 4"));
+  XX=false;
     // if nothing is already CIPSEND pending, we can CIPSEND one reply
     if (clientPendingCIPSEND<0) {
        clientPendingCIPSEND=outboundRing->read();
@@ -66,13 +76,12 @@ void WifiInboundHandler::loop1() {
      }
     
 
-    if (pendingCipsend) {
+    if (pendingCipsend && millis()-lastCIPSEND > CIPSENDgap) {
          if (Diag::WIFI) DIAG( F("WiFi: [[CIPSEND=%d,%d]]"), clientPendingCIPSEND, currentReplySize);
          StringFormatter::send(wifiStream, F("AT+CIPSEND=%d,%d\r\n"),  clientPendingCIPSEND, currentReplySize);
          pendingCipsend=false;
          return;
       }
-    
     
     // if something waiting to execute, we can call it 
       int clientId=inboundRing->read();
@@ -83,7 +92,6 @@ void WifiInboundHandler::loop1() {
          for (int i=0;i<count;i++) cmd[i]=inboundRing->read();   
          cmd[count]=0;
          if (Diag::WIFI) DIAG(F("%e"),cmd); 
-         
          CommandDistributor::parse(clientId,cmd,outboundRing);
          return;
       }
@@ -91,16 +99,17 @@ void WifiInboundHandler::loop1() {
 
 
 
+
 // This is a Finite State Automation (FSA) handling the inbound bytes from an ES AT command processor    
 
 WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
-  while (wifiStream->available()) {
-    char ch = wifiStream->read();
-
+  while (wifiStream->available()>=0) {
+    int chint = wifiStream->read();
+    if (chint<0) break; 
+    byte ch=(char)chint; 
     // echo the char to the diagnostic stream in escaped format
     if (Diag::WIFI) {
-      // DIAG(F(" %d/"), loopState);
-      StringFormatter::printEscape(ch); // DIAG in disguise
+     StringFormatter::printEscape((char)ch); // DIAG in disguise
     }
 
     switch (loopState) {
@@ -131,11 +140,13 @@ WifiInboundHandler::INBOUND_STATE WifiInboundHandler::loop2() {
        
         if (ch=='S') { // SEND OK probably 
           loopState=SKIPTOEND;
+          lastCIPSEND=0; // no need to wait next time 
           break;
         }
         
         if (ch=='b') {   // This is a busy indicator... probabaly must restart a CIPSEND  
            pendingCipsend=(clientPendingCIPSEND>=0);
+           if (pendingCipsend) lastCIPSEND=millis(); // forces a gap to next CIPSEND
            loopState=SKIPTOEND; 
            break; 
         }
