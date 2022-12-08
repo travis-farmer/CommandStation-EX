@@ -124,7 +124,6 @@ void setup()
   #endif
   LCD(3, F("Ready"));
   CommandDistributor::broadcastPower();
-  Diag::WIFI=true;
 }
 
 void loop()
