@@ -341,9 +341,14 @@ void WifiInterface::ATCommand(HardwareSerial * stream,const byte * command) {
     while(stream->available()) stream->read(); // Drain serial input first 
     bool startOfLine=true;
     while(true) {
-      while (wifiStream->available()) stream->write(wifiStream->read());
+      while (wifiStream->available()>=0) {
+        int cx=wifiStream->read();
+        if (cx<=0) break;
+        stream->write(cx);
+      }
       if (stream->available()) {
         int cx=stream->read();
+        if (cx<0) continue;
         // A newline followed by !!! is an exit
         if (cx=='\n' || cx=='\r') startOfLine=true; 
         else if (startOfLine && cx=='!')  break;

@@ -196,6 +196,7 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
     case OPCODE_IFNOT: {
       int16_t pin = (int16_t)operand;
       if (pin<0) pin = -pin;
+      DIAG(F("EXRAIL input vpin %d"),pin);
       IODevice::configureInput((VPIN)pin,true);
       break;
     }
@@ -205,6 +206,7 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
     case OPCODE_IFGTE:
     case OPCODE_IFLT:
     case OPCODE_DRIVE: {
+      DIAG(F("EXRAIL analog input vpin %d"),(VPIN)operand);
       IODevice::configureAnalogIn((VPIN)operand);
       break;
     }
