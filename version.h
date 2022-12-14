@@ -4,7 +4,10 @@
 #include "StringFormatter.h"
 
 
-#define VERSION "4.2.7a"
+#define VERSION "4.2.9"
+// 4.2.9 Withrottle connecting improvements
+// 4.2.8 Report board type when provided
+// 4.2.7 Cleanup wifi disconnect issues and highmem
 // 4.2.6 FIX: Remove RAM thief
 //       FIX: ADC port 8-15 fix
 // 4.2.5 Make GETFLASHW code more universal

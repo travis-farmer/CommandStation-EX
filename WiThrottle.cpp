@@ -131,7 +131,8 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
     else if (!heartrateSent) {
          heartrateSent=true;
         // allow heartbeat to slow down once all metadata sent     
-        StringFormatter::send(stream,F("*%d\n"),HEARTBEAT_SECONDS);
+        StringFormatter::send(stream,F("*%d\nHMConnected\n"),HEARTBEAT_SECONDS);
+
     }
   }
   
@@ -187,7 +188,7 @@ void WiThrottle::parse(RingStream * stream, byte * cmdx) {
       }
       break;
     case 'N':  // Heartbeat (2), only send if connection completed by 'HU' message
-      StringFormatter::send(stream, F("*%d\n"), heartrateSent ? HEARTBEAT_SECONDS : HEARTBEAT_SECONDS/2); // return timeout value
+      StringFormatter::send(stream, F("*%d\n"), heartrateSent ? HEARTBEAT_SECONDS : HEARTBEAT_PRELOAD); // return timeout value
       break;
     case 'M': // multithrottle
       multithrottle(stream, cmd); 
@@ -500,8 +501,8 @@ void WiThrottle::sendIntro(Print* stream) {
 	StringFormatter::send(stream,F("HtDCC-EX v%S, %S, %S, %S\n"), F(VERSION), F(ARDUINO_TYPE), DCC::getMotorShieldName(), F(GITHUB_SHA));
 	StringFormatter::send(stream,F("PTT]\\[Turnouts}|{Turnout]\\[THROW}|{2]\\[CLOSE}|{4\n"));
 	StringFormatter::send(stream,F("PPA%x\n"),TrackManager::getMainPower()==POWERMODE::ON);     
-	// set heartbeat to 5 seconds because we need to sync the metadata (1 second is too short!)
-  StringFormatter::send(stream,F("*%d\n"), HEARTBEAT_SECONDS/2);
+	// set heartbeat to 2 seconds because we need to sync the metadata (1 second is too short!)
+  StringFormatter::send(stream,F("*%d\nHMConnecting..\n"), HEARTBEAT_PRELOAD);
 }
 
 void WiThrottle::sendTurnouts(Print* stream) {

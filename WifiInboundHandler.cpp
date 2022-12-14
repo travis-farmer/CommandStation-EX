@@ -31,7 +31,6 @@ WifiInboundHandler * WifiInboundHandler::singleton;
 
 void WifiInboundHandler::setup(Stream * ESStream) {
   singleton=new WifiInboundHandler(ESStream);
-  // DIAG(F("WifiInbound Setup2 %P %P"), ESStream,singleton);
 }
 
 void WifiInboundHandler::loop() {
@@ -45,7 +44,6 @@ WifiInboundHandler::WifiInboundHandler(Stream * ESStream) {
   inboundRing=new RingStream(INBOUND_RING);
   outboundRing=new RingStream(OUTBOUND_RING);
   pendingCipsend=false;
-  // DIAG(F("WifiInbound setup1 %P"), wifiStream);
 } 
 
 
@@ -53,20 +51,13 @@ WifiInboundHandler::WifiInboundHandler(Stream * ESStream) {
 // +IPD,x,lll:data is stored in streamer[x]
 // Other input returns  
 void WifiInboundHandler::loop1() {
-   static bool XX=true;
-   if (XX) DIAG(F("Wifi 1"));
-
+  
    // First handle all inbound traffic events because they will block the sending 
-   if (loop2()!=INBOUND_IDLE) {
-       if (XX) DIAG(F("Wifi 2"));
-      return;
-   }
-if (XX) DIAG(F("Wifi 3"));
-
+   if (loop2()!=INBOUND_IDLE) return;
+   
    WiThrottle::loop(outboundRing);
- if (XX) DIAG(F("Wifi 4"));
-  XX=false;
-    // if nothing is already CIPSEND pending, we can CIPSEND one reply
+
+   // if nothing is already CIPSEND pending, we can CIPSEND one reply
     if (clientPendingCIPSEND<0) {
        clientPendingCIPSEND=outboundRing->read();
        if (clientPendingCIPSEND>=0) {
@@ -96,9 +87,6 @@ if (XX) DIAG(F("Wifi 3"));
          return;
       }
    }
-
-
-
 
 // This is a Finite State Automation (FSA) handling the inbound bytes from an ES AT command processor    
 
