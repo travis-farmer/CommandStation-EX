@@ -3,7 +3,7 @@
 
 #include <Arduino.h>
 
-#if defined(ARDUINO_ARCH_SAMD)
+#if defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_RP2040)
 #include <SparkFun_External_EEPROM.h>
 extern ExternalEEPROM EEPROM;
 #else

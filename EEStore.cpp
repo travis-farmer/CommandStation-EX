@@ -24,7 +24,7 @@
 #include "Outputs.h"
 #include "DIAG.h"
 
-#if defined(ARDUINO_ARCH_SAMD)
+#if defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_RP2040)
 ExternalEEPROM EEPROM;
 #endif
 

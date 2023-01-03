@@ -43,12 +43,13 @@
  */
 
 #include "DCCTimer.h"
+
 const int DCC_SIGNAL_TIME=58;  // this is the 58uS DCC 1-bit waveform half-cycle 
 const long CLOCK_CYCLES=(F_CPU / 1000000 * DCC_SIGNAL_TIME) >>1;
 
 INTERRUPT_CALLBACK interruptHandler=0;
 
-#ifdef ARDUINO_ARCH_MEGAAVR
+#if defined(ARDUINO_ARCH_MEGAAVR)
   // Arduino unoWifi Rev2 and nanoEvery architectire 
   
   void DCCTimer::begin(INTERRUPT_CALLBACK callback) {
@@ -83,7 +84,24 @@ INTERRUPT_CALLBACK interruptHandler=0;
     memcpy(mac,(void *) &SIGROW.SERNUM0,6);  // serial number
   }
 
-#else 
+#elif defined(ARDUINO_ARCH_RP2040)
+  // RP2040 aka Raspberry PI Pico
+  void DCCTimer::begin(INTERRUPT_CALLBACK callback) {
+    interruptHandler=callback;
+  }
+
+  bool DCCTimer::isPWMPin(byte pin) {
+       return false;  // TODO what are the relevant pins? 
+  }
+
+ void DCCTimer::setPWM(byte pin, bool high) {
+    // TODO what are the relevant pins?
+ }
+
+  void   DCCTimer::getSimulatedMacAddress(byte mac[6]) {
+    //memcpy(mac,(void *) &SIGROW.SERNUM0,6);  // serial number
+  }
+#else
   // Arduino nano, uno, mega etc
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
     #define TIMER1_A_PIN   11
