@@ -501,8 +501,16 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
         return;
 
     case 'c': // SEND METER RESPONSES <c>
-        // No longer supported because of multiple tracks                               <c MeterName value C/V unit min max res warn>
+        // No longer supported because of multiple tracks See <G> and <I>
         break;
+    
+    case 'G': // Track current gauge limits 
+        TrackManager::reportGauges(stream);   // <g limit...limit>     
+        return;
+
+    case 'I': // Track current  
+        TrackManager::reportCurrent(stream);  // <i mA...mA>
+        return;
 
     case 'Q': // SENSORS <Q>
         Sensor::printAll(stream);

@@ -423,7 +423,26 @@ POWERMODE TrackManager::getProgPower() {
                 return track[t]->getPower();
     return POWERMODE::OFF;   
   }
-   
+
+void TrackManager::reportCurrent(Print* stream) {
+    StringFormatter::send(stream,F("<i"));
+    FOR_EACH_TRACK(t) {
+         StringFormatter::send(stream, F(" %d"),
+         (track[t]->getPower()==POWERMODE::OVERLOAD) ? -1 :
+            track[t]->raw2mA(track[t]->getCurrentRaw(false)));
+         }
+    StringFormatter::send(stream,F(">\n"));    
+}
+
+void TrackManager::reportGauges(Print* stream) {
+    StringFormatter::send(stream,F("<g"));
+    FOR_EACH_TRACK(t) {
+         StringFormatter::send(stream, F(" %d"),
+            track[t]->raw2mA(track[t]->getRawCurrentTripValue()));
+         }
+    StringFormatter::send(stream,F(">\n"));    
+}
+
 void TrackManager::setJoinRelayPin(byte joinRelayPin) {
   joinRelay=joinRelayPin;
   if (joinRelay!=UNUSED_PIN) {
