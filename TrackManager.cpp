@@ -425,7 +425,7 @@ POWERMODE TrackManager::getProgPower() {
   }
 
 void TrackManager::reportCurrent(Print* stream) {
-    StringFormatter::send(stream,F("<i"));
+    StringFormatter::send(stream,F("<jI"));
     FOR_EACH_TRACK(t) {
          StringFormatter::send(stream, F(" %d"),
          (track[t]->getPower()==POWERMODE::OVERLOAD) ? -1 :
@@ -435,7 +435,7 @@ void TrackManager::reportCurrent(Print* stream) {
 }
 
 void TrackManager::reportGauges(Print* stream) {
-    StringFormatter::send(stream,F("<g"));
+    StringFormatter::send(stream,F("<jG"));
     FOR_EACH_TRACK(t) {
          StringFormatter::send(stream, F(" %d"),
             track[t]->raw2mA(track[t]->getRawCurrentTripValue()));
