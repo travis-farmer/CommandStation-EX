@@ -79,6 +79,7 @@ class TrackManager {
     static void sampleCurrent();
     static void reportGauges(Print* stream);
     static void reportCurrent(Print* stream);
+    static void reportObsoleteCurrent(Print* stream); 
     static int16_t joinRelay;
     static bool progTrackSyncMain;  // true when prog track is a siding switched to main
      static bool progTrackBoosted;   // true when prog track is not current limited

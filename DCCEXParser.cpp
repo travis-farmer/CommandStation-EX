@@ -503,8 +503,10 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
         return;
 
     case 'c': // SEND METER RESPONSES <c>
-        // No longer supported because of multiple tracks See <G> and <I>
-        break;
+        // No longer useful because of multiple tracks See <JG> and <JI>
+        if (params>0) break;
+        TrackManager::reportObsoleteCurrent(stream);
+        return;
 
     case 'Q': // SENSORS <Q>
         Sensor::printAll(stream);
