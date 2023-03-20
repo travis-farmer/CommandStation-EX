@@ -291,9 +291,9 @@ protected:
     _serial->write(node->getAddress() + 65);
     _serial->write('I'); // I for initialise message
     _serial->write(node->getType());  // NDP
-    _serial->write(0);  // dH
-    _serial->write(0);  // dL
-    _serial->write(0);  // NS
+    _serial->write((uint8_t)0);  // dH
+    _serial->write((uint8_t)0);  // dL
+    _serial->write((uint8_t)0);  // NS
     _serial->write(ETX);
     return true;
   }
