@@ -19,6 +19,43 @@
 
 #include "IO_CMRI.h"
 
+/************************************************************
+ * CMRIbus implementation
+ ************************************************************/
+
+// Constructor for CMRIbus
+CMRIbus::CMRIbus(uint8_t busNo, HardwareSerial &serial, unsigned long baud, uint16_t cycleTimeMS, VPIN transmitEnablePin) {
+  _busNo = busNo;
+  _serial = &serial;
+  _baud = baud;
+  _cycleTime = cycleTimeMS * 1000UL; // convert from milliseconds to microseconds.
+  _transmitEnablePin = transmitEnablePin;
+  if (_transmitEnablePin != VPIN_NONE) {
+    pinMode(_transmitEnablePin, OUTPUT);
+    ArduinoPins::fastWriteDigital(_transmitEnablePin, 0); // transmitter initially off
+  }
+
+  // Max message length is 256+6=262 bytes.  
+  // Each byte is one start bit, 8 data bits and 1 stop bit = 10 bits per byte.  
+  // Calculate timeout based on double this time.
+  _timeoutPeriod = 2 * 10 * 262 * 1000UL / (_baud / 1000UL);
+
+  // Calculate the time in microseconds to transmit one byte (10 bits).
+  _byteTransmitTime = 1000000UL * 10 / _baud;
+  // Postdelay is only required if we need to allow for data still being sent when
+  // we want to switch off the transmitter.  The flush() method of HardwareSerial
+  // ensures that the data has completed being sent over the line.
+  _postDelay = 0;
+  
+  // Add device to HAL device chain
+  IODevice::addDevice(this);
+
+  // Add bus to CMRIbus chain.
+  _nextBus = _busList;
+  _busList = this;
+}
+
+
 // Main loop function for CMRIbus.
 // Work through list of nodes.  For each node, in separate loop entries
 // send initialisation message (once only);  then send
@@ -37,7 +74,56 @@ void CMRIbus::_loop(unsigned long currentMicros) {
 
 }
 
+// Send output data to the bus for nominated CMRInode
+uint16_t CMRIbus::sendData(CMRInode *node) {
+  uint16_t numDataBytes = (node->getNumOutputs()+7)/8;
+  _serial->write(SYN);
+  _serial->write(SYN);
+  _serial->write(STX);
+  _serial->write(node->getAddress() + 65);
+  _serial->write('T'); // T for Transmit data message
+  uint16_t charsSent = 6; // include header and trailer
+  for (uint8_t index=0; index<numDataBytes; index++) {
+    uint8_t value = node->getOutputStates(index);
+    if (value == DLE || value == STX || value == ETX) {
+      _serial->write(DLE); 
+      charsSent++;
+    }
+    _serial->write(value);
+    charsSent++;
+  }
+  _serial->write(ETX);
+  return charsSent;  // number of characters sent
+}
+
+// Send request for input data to nominated CMRInode.
+uint16_t CMRIbus::requestData(CMRInode *node) {
+  _serial->write(SYN);
+  _serial->write(SYN);
+  _serial->write(STX);
+  _serial->write(node->getAddress() + 65);
+  _serial->write('P'); // P for Poll message
+  _serial->write(ETX);
+  return 6;  // number of characters sent
+}
+
+// Send initialisation message
+uint16_t CMRIbus::sendInitialisation(CMRInode *node) {
+  _serial->write(SYN);
+  _serial->write(SYN);
+  _serial->write(STX);
+  _serial->write(node->getAddress() + 65);
+  _serial->write('I'); // I for initialise message
+  _serial->write(node->getType());  // NDP
+  _serial->write((uint8_t)0);  // dH
+  _serial->write((uint8_t)0);  // dL
+  _serial->write((uint8_t)0);  // NS
+  _serial->write(ETX);
+  return 10;  // number of characters sent
+}
+
 void CMRIbus::processOutgoing() {
+  uint16_t charsSent = 0;
   if (_currentNode == NULL) {
     // If we're between read/write cycles then don't do anything else.
     if (_currentMicros - _cycleStartTime < _cycleTime) return;
@@ -50,19 +136,25 @@ void CMRIbus::processOutgoing() {
   switch (_transmitState) {
     case TD_IDLE:
     case TD_INIT:
+      enableTransmitter();
       if (!_currentNode->isInitialised()) {
-        sendInitialisation(_currentNode);
+        charsSent = sendInitialisation(_currentNode);
         _currentNode->setInitialised();
         _transmitState = TD_TRANSMIT;
+        delayUntil(_currentMicros+_byteTransmitTime*charsSent);
         break;
       }
       /* fallthrough */
     case TD_TRANSMIT:
-      sendData(_currentNode);
+      charsSent = sendData(_currentNode);
       _transmitState = TD_PROMPT;
+        // Defer next entry for as long as it takes to transmit the characters, 
+        // to allow output queue to empty.
+      delayUntil(_currentMicros+_byteTransmitTime*charsSent);
       break;
     case TD_PROMPT:
-      requestData(_currentNode);
+      charsSent = requestData(_currentNode);
+      disableTransmitter();
       _transmitState = TD_RECEIVE;
       _timeoutStart = _currentMicros; // Start timeout on response
       break;
@@ -84,7 +176,7 @@ void CMRIbus::processIncoming() {
   int data = _serial->read();
   if (data < 0) return;     // No characters to read
 
-  if (!_currentNode) return;   // Not waiting for input, so ignore.
+  if (_transmitState != TD_RECEIVE || !_currentNode) return;   // Not waiting for input, so ignore.
 
   uint8_t nextState = RD_SYN1;  // default to resetting state machine
   switch(_receiveState) {
@@ -127,6 +219,40 @@ void CMRIbus::processIncoming() {
   }
   _receiveState = nextState;
 }
+
+// If configured for half duplex RS485, switch RS485 interface
+// into transmit mode.
+void CMRIbus::enableTransmitter() {
+  if (_transmitEnablePin != VPIN_NONE) 
+    ArduinoPins::fastWriteDigital(_transmitEnablePin, 1);
+  // Send an extra SYN character to ensure transmitter and 
+  // remote receiver have stabilised before we start the packet.
+  _serial->write(SYN);
+}
+
+// If configured for half duplex RS485, switch RS485 interface
+// into receive mode.
+void CMRIbus::disableTransmitter() {
+  // Wait until all data has been transmitted.  On the standard
+  // AVR driver, this waits until the FIFO is empty and all
+  // data has been sent over the link.
+  _serial->flush();
+  // If we don't trust the 'flush' function and think the 
+  // data's still in transit, then wait a bit longer.
+  if (_postDelay > 0)
+    delayMicroseconds(_postDelay);
+  // Hopefully, we can now safely switch off the transmitter.
+  if (_transmitEnablePin != VPIN_NONE) 
+    ArduinoPins::fastWriteDigital(_transmitEnablePin, 0);
+}    
+
+// Link to chain of CMRI bus instances
+CMRIbus *CMRIbus::_busList = NULL;
+
+
+/************************************************************
+ * CMRInode implementation
+ ************************************************************/
 
 // Constructor for CMRInode object
 CMRInode::CMRInode(VPIN firstVpin, int nPins, uint8_t busNo, uint8_t address, char type, uint16_t inputs, uint16_t outputs) {
@@ -173,5 +299,3 @@ CMRInode::CMRInode(VPIN firstVpin, int nPins, uint8_t busNo, uint8_t address, ch
   }
 }
 
-// Link to chain of CMRI bus instances
-CMRIbus *CMRIbus::_busList = NULL;
