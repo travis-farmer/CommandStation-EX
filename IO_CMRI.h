@@ -30,8 +30,10 @@
  * Each bus must use a different serial port.
  * 
  * To define a CMRI node and associate it with a CMRI bus,
- *    CMRInode:create(bus, address, type [, inputs, outputs]);
+ *    CMRInode::create(firstVPIN, numVPINs, bus, address, type [, inputs, outputs]);
  * 
+ * firstVPIN = first vpin in block allocated to this device
+ * numVPINs = number of vpins (e.g. 72 for an SMINI node)
  * bus = 0-255
  * address = 0-127
  * type = 'M' for SMINI (fixed 24 inputs and 48 outputs)
