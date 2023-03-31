@@ -40,7 +40,7 @@ CMRIbus::CMRIbus(uint8_t busNo, HardwareSerial &serial, unsigned long baud, uint
   // Each byte is one start bit, 8 data bits and 1 or 2 stop bits, assume 11 bits per byte.  
   // Calculate timeout based on treble this time.
   _timeoutPeriod = 3 * 11 * 262 * 1000UL / (_baud / 1000UL);
-#if ARDUINOCMRI_COMPATIBLE
+#if defined(ARDUINOCMRI_COMPATIBLE)
   // NOTE: The ArduinoCMRI library, unless modified, contains a 'delay(50)' between 
   // receiving the end of the prompt message and starting to send the response.  This
   // is allowed for below.
@@ -240,7 +240,7 @@ void CMRIbus::enableTransmitter() {
   // it's preceded by an odd number of SYN characters.
   // So send a SYN followed by a NUL in that case.
   _serial->write(SYN);
-#if ARDUINOCMRI_COMPATIBLE
+#if defined(ARDUINOCMRI_COMPATIBLE)
   _serial->write(NUL);  // Reset the ArduinoCMRI library's parser
 #endif
 }

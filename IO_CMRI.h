@@ -36,7 +36,7 @@
  * Various work-arounds may be enabled within the driver by adding the following line to your config.h file,
  * to allow nodes running the ArduinoCMRI library to communicate:
  * 
- *  #define ARDUINOCMRI_COMPATIBLE TRUE
+ *  #define ARDUINOCMRI_COMPATIBLE
  * 
  * CMRINode
  * ========
@@ -222,7 +222,7 @@ public:
   // Device-specific initialisation
   void _begin() override {
     // CMRInet spec states one stop bit, JMRI and ArduinoCMRI use two stop bits
-#if ARDUINOCMRI_COMPATIBLE
+#if defined(ARDUINOCMRI_COMPATIBLE)
     _serial->begin(_baud, SERIAL_8N2);
 #else
     _serial->begin(_baud, SERIAL_8N1);
