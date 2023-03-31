@@ -18,6 +18,8 @@
  */
 
 /*
+ * CMRIbus
+ * =======
  * To define a CMRI bus, example syntax:
  *    CMRIbus::create(bus, serial, baud[, cycletime[, pin]]);
  * 
@@ -29,6 +31,15 @@
  * 
  * Each bus must use a different serial port.
  * 
+ * IMPORTANT: If you are using ArduinoCMRI library code by Michael Adams, at the time of writing this library
+ * is not compliant with the LCS-9.10.1 specification for CMRInet protocol.  
+ * Various work-arounds may be enabled within the driver by adding the following line to your config.h file,
+ * to allow nodes running the ArduinoCMRI library to communicate:
+ * 
+ *  #define ARDUINOCMRI_COMPATIBLE TRUE
+ * 
+ * CMRINode
+ * ========
  * To define a CMRI node and associate it with a CMRI bus,
  *    CMRInode::create(firstVPIN, numVPINs, bus, address, type [, inputs, outputs]);
  * 
@@ -196,6 +207,7 @@ private:
 
   // Definition of special characters in CMRInet protocol
   enum : uint8_t {
+    NUL = 0x00,
     STX = 0x02,
     ETX = 0x03,
     DLE = 0x10,
@@ -209,8 +221,12 @@ public:
 
   // Device-specific initialisation
   void _begin() override {
-    // Some sources quote one stop bit, some two.
+    // CMRInet spec states one stop bit, JMRI and ArduinoCMRI use two stop bits
+#if ARDUINOCMRI_COMPATIBLE
+    _serial->begin(_baud, SERIAL_8N2);
+#else
     _serial->begin(_baud, SERIAL_8N1);
+#endif
   #if defined(DIAG_IO)
     _display();
   #endif

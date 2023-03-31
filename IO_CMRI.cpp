@@ -18,6 +18,7 @@
  */
 
 #include "IO_CMRI.h"
+#include "defines.h"
 
 /************************************************************
  * CMRIbus implementation
@@ -36,12 +37,18 @@ CMRIbus::CMRIbus(uint8_t busNo, HardwareSerial &serial, unsigned long baud, uint
   }
 
   // Max message length is 256+6=262 bytes.  
-  // Each byte is one start bit, 8 data bits and 1 stop bit = 10 bits per byte.  
-  // Calculate timeout based on double this time.
-  _timeoutPeriod = 2 * 10 * 262 * 1000UL / (_baud / 1000UL);
-
-  // Calculate the time in microseconds to transmit one byte (10 bits).
-  _byteTransmitTime = 1000000UL * 10 / _baud;
+  // Each byte is one start bit, 8 data bits and 1 or 2 stop bits, assume 11 bits per byte.  
+  // Calculate timeout based on treble this time.
+  _timeoutPeriod = 3 * 11 * 262 * 1000UL / (_baud / 1000UL);
+#if ARDUINOCMRI_COMPATIBLE
+  // NOTE: The ArduinoCMRI library, unless modified, contains a 'delay(50)' between 
+  // receiving the end of the prompt message and starting to send the response.  This
+  // is allowed for below.
+  _timeoutPeriod += 50000UL;
+#endif
+  
+  // Calculate the time in microseconds to transmit one byte (11 bits max).
+  _byteTransmitTime = 1000000UL * 11 / _baud;
   // Postdelay is only required if we need to allow for data still being sent when
   // we want to switch off the transmitter.  The flush() method of HardwareSerial
   // ensures that the data has completed being sent over the line.
@@ -148,9 +155,9 @@ void CMRIbus::processOutgoing() {
     case TD_TRANSMIT:
       charsSent = sendData(_currentNode);
       _transmitState = TD_PROMPT;
-        // Defer next entry for as long as it takes to transmit the characters, 
-        // to allow output queue to empty.
-      delayUntil(_currentMicros+_byteTransmitTime*charsSent);
+      // Defer next entry for as long as it takes to transmit the characters, 
+      // to allow output queue to empty.  Allow 2 bytes extra.
+      delayUntil(_currentMicros+_byteTransmitTime*(charsSent+2));
       break;
     case TD_PROMPT:
       charsSent = requestData(_currentNode);
@@ -184,7 +191,7 @@ void CMRIbus::processIncoming() {
       if (data == SYN) nextState = RD_SYN2; 
       break;
     case RD_SYN2:
-      if (data == SYN) nextState = RD_STX; 
+      if (data == SYN) nextState = RD_STX; else nextState = RD_SYN2;
       break;
     case RD_STX:
       if (data == STX) nextState = RD_ADDR;
@@ -225,9 +232,17 @@ void CMRIbus::processIncoming() {
 void CMRIbus::enableTransmitter() {
   if (_transmitEnablePin != VPIN_NONE) 
     ArduinoPins::fastWriteDigital(_transmitEnablePin, 1);
-  // Send an extra SYN character to ensure transmitter and 
-  // remote receiver have stabilised before we start the packet.
+  // If we need a delay before we start the packet header, 
+  // we can send a character or two to synchronise the 
+  // transmitter and receiver.
+  // SYN characters should be used, but a bug in the
+  // ArduinoCMRI library causes it to ignore the packet if
+  // it's preceded by an odd number of SYN characters.
+  // So send a SYN followed by a NUL in that case.
   _serial->write(SYN);
+#if ARDUINOCMRI_COMPATIBLE
+  _serial->write(NUL);  // Reset the ArduinoCMRI library's parser
+#endif
 }
 
 // If configured for half duplex RS485, switch RS485 interface
