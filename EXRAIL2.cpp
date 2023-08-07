@@ -84,7 +84,7 @@ RMFT2 * RMFT2::pausingTask=NULL; // Task causing a PAUSE.
  // when pausingTask is set, that is the ONLY task that gets any service,
  // and all others will have their locos stopped, then resumed after the pausing task resumes.
 byte RMFT2::flags[MAX_FLAGS];
-
+Print * RMFT2::LCCSerial=0;
 LookList *  RMFT2::sequenceLookup=NULL;
 LookList *  RMFT2::onThrowLookup=NULL;
 LookList *  RMFT2::onCloseLookup=NULL;

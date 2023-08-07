@@ -179,6 +179,7 @@ private:
    static const  HIGHFLASH  byte RouteCode[];
    static const  HIGHFLASH  int16_t SignalDefinitions[];
    static byte flags[MAX_FLAGS];
+   static Print * LCCSerial;
    static LookList * sequenceLookup;
    static LookList * onThrowLookup;
    static LookList * onCloseLookup;
