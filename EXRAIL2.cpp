@@ -69,6 +69,7 @@ const int16_t HASH_KEYWORD_ROUTES=-3702;
 const int16_t HASH_KEYWORD_RED=26099;
 const int16_t HASH_KEYWORD_AMBER=18713;
 const int16_t HASH_KEYWORD_GREEN=-31493;
+const int16_t HASH_KEYWORD_S='S';
 
 // One instance of RMFT clas is used for each "thread" in the automation.
 // Each thread manages a loco on a journey through the layout, and/or may manage a scenery automation.
@@ -292,11 +293,26 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
     }
         break;
 	
+
   case '/':  // New EXRAIL command
     reject=!parseSlash(stream,paramCount,p);
     opcode=0;
     break;
-    
+
+  case 'J':
+    if (paramCount==1 && p[0]==HASH_KEYWORD_S) {  //<JS>
+      LCCSerial=stream;
+      StringFormatter::send(stream,F("<jS"));
+      for (int progCounter=0;; SKIPOP) {
+        byte opcode=GET_OPCODE;
+        if (opcode==OPCODE_ENDEXRAIL) break;
+        if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F(" %x"),getOperand(progCounter,0));   
+      }
+      StringFormatter::send(stream,F("\n>"));
+      opcode=0;
+    } 
+    break; 
+
   default:  // other commands pass through
     break;
   }
@@ -949,7 +965,10 @@ void RMFT2::loop2() {
       invert=false;
     }
     break;
-    
+
+  case OPCODE_LCC:
+       if (LCCSerial) StringFormatter::send(LCCSerial,F("<%% %x>\n"),(uint16_t)operand);
+       break;  
     
   case OPCODE_SERVO: // OPCODE_SERVO,V(vpin),OPCODE_PAD,V(position),OPCODE_PAD,V(profile),OPCODE_PAD,V(duration)
     IODevice::writeAnalogue(operand,getOperand(1),getOperand(2),getOperand(3));

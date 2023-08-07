@@ -82,6 +82,7 @@
 #undef LATCH 
 #undef LCD 
 #undef SCREEN
+#undef LCC 
 #undef LCN 
 #undef MOVETT
 #undef ONACTIVATE
@@ -204,7 +205,8 @@
 #define INVERT_DIRECTION 
 #define JOIN 
 #define KILLALL
-#define LATCH(sensor_id) 
+#define LATCH(sensor_id)
+#define LCC(eventid) 
 #define LCD(row,msg)
 #define SCREEN(display,row,msg)
 #define LCN(msg) 

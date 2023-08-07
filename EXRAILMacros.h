@@ -309,6 +309,7 @@ const  HIGHFLASH  int16_t RMFT2::SignalDefinitions[] = {
 #define JOIN OPCODE_JOIN,0,0,
 #define KILLALL OPCODE_KILLALL,0,0,
 #define LATCH(sensor_id) OPCODE_LATCH,V(sensor_id),
+#define LCC(eventid) OPCODE_LCC,V(eventid),
 #define LCD(id,msg) PRINT(msg)
 #define SCREEN(display,id,msg) PRINT(msg)
 #define LCN(msg) PRINT(msg)
