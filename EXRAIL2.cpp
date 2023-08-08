@@ -308,7 +308,7 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
         if (opcode==OPCODE_ENDEXRAIL) break;
         if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F(" %x"),getOperand(progCounter,0));   
       }
-      StringFormatter::send(stream,F("\n>"));
+      StringFormatter::send(stream,F(">\n"));
       opcode=0;
     } 
     break; 
