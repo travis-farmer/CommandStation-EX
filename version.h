@@ -3,7 +3,7 @@
 
 #include "StringFormatter.h"
 
-#define VERSION "4.2.66"
+#define VERSION "5.0.1LCC"
 // 4.2.66 - Throttle inrush current by applying PWM to brake pin when
 //          fault pin goes active
 // 4.2.65 - new config WIFI_FORCE_AP option

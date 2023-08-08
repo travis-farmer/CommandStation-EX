@@ -70,6 +70,8 @@ const int16_t HASH_KEYWORD_RED=26099;
 const int16_t HASH_KEYWORD_AMBER=18713;
 const int16_t HASH_KEYWORD_GREEN=-31493;
 const int16_t HASH_KEYWORD_S='S';
+const int16_t HASH_KEYWORD_L='L';
+const int16_t HASH_KEYWORD_E='E';
 
 // One instance of RMFT clas is used for each "thread" in the automation.
 // Each thread manages a loco on a journey through the layout, and/or may manage a scenery automation.
@@ -310,7 +312,39 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
       }
       StringFormatter::send(stream,F(">\n"));
       opcode=0;
+      return;
     } 
+    if (paramCount==1 && p[0]==HASH_KEYWORD_L) {  //<JL>
+      // we stream the hex events we wish to listen to
+      // and at the same time build the event index lookup
+      
+      LCCSerial=stream;
+      StringFormatter::send(stream,F("<jL"));
+      int eventIndex=0;
+      for (int progCounter=0;; SKIPOP) {
+        byte opcode=GET_OPCODE;
+        if (opcode==OPCODE_ENDEXRAIL) break;
+        if (opcode==OPCODE_ONLCC) {
+           onLCCLookup[eventIndex++]=progCounter; // TODO skip...    
+           StringFormatter::send(stream,F(" %x.%x.%x:%x"),
+                 getOperand(progCounter,1),
+                 getOperand(progCounter,2),
+                 getOperand(progCounter,3),
+                 getOperand(progCounter,0)
+                 );   
+        }
+      }
+      StringFormatter::send(stream,F(">\n"));
+      opcode=0;
+      return;
+    }
+    if (paramCount==2 && p[0]==HASH_KEYWORD_E) {  //<JE eventid>
+      reject=p[1]<0 || p[1]>=countLCCLookup;
+      if (reject) break;
+      new RMFT2(onLCCLookup[p[1]]); 
+      opcode=0;
+      return;
+    }
     break; 
 
   default:  // other commands pass through
@@ -997,6 +1031,7 @@ void RMFT2::loop2() {
   case OPCODE_SERVOTURNOUT: // Turnout definition ignored at runtime
   case OPCODE_PINTURNOUT: // Turnout definition ignored at runtime
   case OPCODE_ONCLOSE: // Turnout event catchers ignored here
+  case OPCODE_ONLCC:   // LCC event catchers ignored here 
   case OPCODE_ONTHROW:
   case OPCODE_ONACTIVATE: // Activate event catchers ignored here
   case OPCODE_ONDEACTIVATE:

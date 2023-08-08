@@ -243,6 +243,16 @@ const  HIGHFLASH  int16_t RMFT2::SignalDefinitions[] = {
     #include "myAutomation.h"
     0,0,0,0 };
 
+// Pass 9 ONLCC counter and lookup array
+#include "EXRAIL2MacroReset.h"
+#undef ONLCC
+#define ONLCC(sender,event) +1 
+
+const int RMFT2::countLCCLookup=0
+#include "myAutomation.h"
+;
+int RMFT2::onLCCLookup[RMFT2::countLCCLookup];
+
 // Last Pass : create main routes table
 // Only undef the macros, not dummy them.  
 #define  RMFT2_UNDEF_ONLY
@@ -318,6 +328,10 @@ const  HIGHFLASH  int16_t RMFT2::SignalDefinitions[] = {
 #define ONACTIVATEL(linear) OPCODE_ONACTIVATE,V(linear+3),
 #define ONAMBER(signal_id) OPCODE_ONAMBER,V(signal_id),
 #define ONCLOSE(turnout_id) OPCODE_ONCLOSE,V(turnout_id),
+#define ONLCC(sender,event) OPCODE_ONLCC,V(event),\
+        OPCODE_PAD,V((((uint64_t)sender)>>32)&0xFFFF),\
+        OPCODE_PAD,V((((uint64_t)sender)>>16)&0xFFFF),\
+        OPCODE_PAD,V((((uint64_t)sender)>>0)&0xFFFF),        
 #define ONTIME(value) OPCODE_ONTIME,V(value),  
 #define ONCLOCKTIME(hours,mins) OPCODE_ONTIME,V((STRIP_ZERO(hours)*60)+STRIP_ZERO(mins)),
 #define ONCLOCKMINS(mins) ONCLOCKTIME(25,mins)

@@ -62,7 +62,7 @@ enum OPCODE : byte {OPCODE_THROW,OPCODE_CLOSE,
              OPCODE_ONCHANGE,
              OPCODE_ONCLOCKTIME,
              OPCODE_ONTIME,
-             OPCODE_LCC,
+             OPCODE_LCC,OPCODE_ONLCC,
 
              // OPcodes below this point are skip-nesting IF operations
              // placed here so that they may be skipped as a group
@@ -190,6 +190,8 @@ private:
    static LookList * onGreenLookup;
    static LookList * onChangeLookup;
    static LookList * onClockLookup;
+   static const int countLCCLookup;
+   static int onLCCLookup[];
     
   // Local variables - exist for each instance/task 
     RMFT2 *next;   // loop chain 
