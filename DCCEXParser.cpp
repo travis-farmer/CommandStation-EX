@@ -67,7 +67,7 @@ Once a new OPCODE is decided upon, update this list.
   k, Reserved for future use - Potentially Railcom
   K, Reserved for future use - Potentially Railcom
   l, Loco speedbyte/function map broadcast
-  L,
+  L, Reserved for LCC interface (implemented in EXRAIL)
   m,
   M, Write DCC packet
   n,
@@ -774,6 +774,9 @@ void DCCEXParser::parseOne(Print *stream, byte *com, RingStream * ringStream)
             }  // switch(p[1])
         break; // case J
         }
+
+    case 'L': // LCC interface implemented in EXRAIL parser
+        break; // Will <X> if not intercepted by EXRAIL 
 
     default: //anything else will diagnose and drop out to <X>
         DIAG(F("Opcode=%c params=%d"), opcode, params);

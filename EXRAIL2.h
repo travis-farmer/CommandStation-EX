@@ -164,6 +164,7 @@ private:
                       OPCODE op2=OPCODE_ENDEXRAIL,OPCODE op3=OPCODE_ENDEXRAIL);
     static void handleEvent(const FSH* reason,LookList* handlers, int16_t id);
     static uint16_t getOperand(int progCounter,byte n);
+    static void startNonRecursiveTask(const FSH* reason, int16_t id,int pc);
     static RMFT2 * loopTask;
     static RMFT2 * pausingTask;
     void delayMe(long millisecs);

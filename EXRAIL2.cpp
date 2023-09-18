@@ -180,7 +180,7 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   onChangeLookup=LookListLoader(OPCODE_ONCHANGE);
   onClockLookup=LookListLoader(OPCODE_ONTIME);
   onOverloadLookup=LookListLoader(OPCODE_ONOVERLOAD);
-
+  // onLCCLookup is not the same so not loaded here. 
 
   // Second pass startup, define any turnouts or servos, set signals red
   // add sequences onRoutines to the lookups
@@ -304,32 +304,28 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
     opcode=0;
     break;
 
-  case 'J':
-    if (paramCount==1 && p[0]==HASH_KEYWORD_S) {  //<JS>
-      LCCSerial=stream;
-      StringFormatter::send(stream,F("<jS"));
+  case 'L':
+    if (paramCount==0) {  //<L>  LCC adapter introducing self
+      LCCSerial=stream;   // now we know where to send events we raise
+
+      // loop through all possible sent events 
       for (int progCounter=0;; SKIPOP) {
         byte opcode=GET_OPCODE;
         if (opcode==OPCODE_ENDEXRAIL) break;
-        if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F(" %x"),getOperand(progCounter,0));   
+        if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F("<LS x%h>"),getOperand(progCounter,0));   
       }
-      StringFormatter::send(stream,F(">\n"));
-      opcode=0;
-      return;
-    } 
-    if (paramCount==1 && p[0]==HASH_KEYWORD_L) {  //<JL>
-      // we stream the hex events we wish to listen to
-      // and at the same time build the event index lookup
       
-      LCCSerial=stream;
-      StringFormatter::send(stream,F("<jL"));
+      // we stream the hex events we wish to listen to
+      // and at the same time build the event index looku.
+      
+      
       int eventIndex=0;
       for (int progCounter=0;; SKIPOP) {
         byte opcode=GET_OPCODE;
         if (opcode==OPCODE_ENDEXRAIL) break;
         if (opcode==OPCODE_ONLCC) {
-           onLCCLookup[eventIndex++]=progCounter; // TODO skip...    
-           StringFormatter::send(stream,F(" %x.%x.%x:%x"),
+           onLCCLookup[eventIndex++]=progCounter; // TODO skip...
+           StringFormatter::send(stream,F("<LL x%h%h%h:%h>"),
                  getOperand(progCounter,1),
                  getOperand(progCounter,2),
                  getOperand(progCounter,3),
@@ -337,16 +333,15 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
                  );   
         }
       }
-      StringFormatter::send(stream,F(">\n"));
+      StringFormatter::send(stream,F("<LR>\n")); // Ready to rumble
       opcode=0;
-      return;
+      break;
     }
-    if (paramCount==2 && p[0]==HASH_KEYWORD_E) {  //<JE eventid>
-      reject=p[1]<0 || p[1]>=countLCCLookup;
-      if (reject) break;
-      new RMFT2(onLCCLookup[p[1]]); 
-      opcode=0;
-      return;
+    if (paramCount==1) {  // <L eventid> LCC event arrived from adapter
+        int16_t eventid=p[0];
+        reject=eventid<0 || eventid>=countLCCLookup;
+        if (!reject)  startNonRecursiveTask(F("LCC"),eventid,onLCCLookup[eventid]);
+        opcode=0;
     }
     break; 
 
@@ -1014,7 +1009,7 @@ void RMFT2::loop2() {
     break;
 
   case OPCODE_LCC:
-       if (LCCSerial) StringFormatter::send(LCCSerial,F("<%% %x>\n"),(uint16_t)operand);
+       if (LCCSerial) StringFormatter::send(LCCSerial,F("<L x%h>"),(uint16_t)operand);
        break;  
     
   case OPCODE_SERVO: // OPCODE_SERVO,V(vpin),OPCODE_PAD,V(position),OPCODE_PAD,V(profile),OPCODE_PAD,V(duration)
@@ -1220,8 +1215,10 @@ void RMFT2::powerEvent(int16_t track, bool overload) {
 
 void RMFT2::handleEvent(const FSH* reason,LookList* handlers, int16_t id) {
   int pc= handlers->find(id);
-  if (pc<0) return;
-  
+  if (pc>=0) startNonRecursiveTask(reason,id,pc);
+}
+
+void RMFT2::startNonRecursiveTask(const FSH* reason, int16_t id,int pc) {  
   // Check we dont already have a task running this handler
   RMFT2 * task=loopTask;
   while(task) {
