@@ -219,12 +219,12 @@ void StringFormatter::printPadded(Print* stream, long value, byte width, bool fo
     if (!formatLeft) stream->print(value, DEC);    
   }
 
-const char FLASH Hexpattern[]="0123456789ABCDEF";
 // printHex prints the full 2 byte hex with leading zeros, unlike print(value,HEX)
+const char FLASH hexchars[]="0123456789ABCDEF";
 void StringFormatter::printHex(Print * stream,uint16_t value) {
     char result[5];
     for (int i=3;i>=0;i--) {
-      result[i]=GETFLASH(Hexpattern+(value & 0xFF));
+      result[i]=GETFLASH(hexchars+(value & 0x0F));
       value>>=4;
     }
     result[4]='\0';

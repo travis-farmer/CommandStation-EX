@@ -312,7 +312,7 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
       for (int progCounter=0;; SKIPOP) {
         byte opcode=GET_OPCODE;
         if (opcode==OPCODE_ENDEXRAIL) break;
-        if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F("<LS x%h>"),getOperand(progCounter,0));   
+        if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F("<LS x%h>\n"),getOperand(progCounter,0));   
       }
       
       // we stream the hex events we wish to listen to
@@ -324,13 +324,15 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
         byte opcode=GET_OPCODE;
         if (opcode==OPCODE_ENDEXRAIL) break;
         if (opcode==OPCODE_ONLCC) {
-           onLCCLookup[eventIndex++]=progCounter; // TODO skip...
-           StringFormatter::send(stream,F("<LL x%h%h%h:%h>"),
+           onLCCLookup[eventIndex]=progCounter; // TODO skip...
+           StringFormatter::send(stream,F("<LL %d x%h%h%h:%h>\n"),
+                 eventIndex,
                  getOperand(progCounter,1),
                  getOperand(progCounter,2),
                  getOperand(progCounter,3),
                  getOperand(progCounter,0)
                  );   
+           eventIndex++;      
         }
       }
       StringFormatter::send(stream,F("<LR>\n")); // Ready to rumble
@@ -350,7 +352,7 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
   }
   if (reject) {
     opcode=0;
-    StringFormatter::send(stream,F("<X>"));
+    StringFormatter::send(stream,F("<X>\n"));
   }
 }
 
