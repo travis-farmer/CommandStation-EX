@@ -321,6 +321,10 @@ int RMFT2::onLCCLookup[RMFT2::countLCCLookup];
 #define KILLALL OPCODE_KILLALL,0,0,
 #define LATCH(sensor_id) OPCODE_LATCH,V(sensor_id),
 #define LCC(eventid) OPCODE_LCC,V(eventid),
+#define LCCX(sender,event) OPCODE_LCCX,V(event),\
+        OPCODE_PAD,V((((uint64_t)sender)>>32)&0xFFFF),\
+        OPCODE_PAD,V((((uint64_t)sender)>>16)&0xFFFF),\
+        OPCODE_PAD,V((((uint64_t)sender)>>0)&0xFFFF),  
 #define LCD(id,msg) PRINT(msg)
 #define SCREEN(display,id,msg) PRINT(msg)
 #define LCN(msg) PRINT(msg)

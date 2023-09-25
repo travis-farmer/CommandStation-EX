@@ -84,6 +84,7 @@
 #undef LCD 
 #undef SCREEN
 #undef LCC 
+#undef LCCX 
 #undef LCN 
 #undef MOVETT
 #undef ONACTIVATE
@@ -211,6 +212,7 @@
 #define KILLALL
 #define LATCH(sensor_id)
 #define LCC(eventid) 
+#define LCCX(senderid,eventid) 
 #define LCD(row,msg)
 #define SCREEN(display,row,msg)
 #define LCN(msg) 

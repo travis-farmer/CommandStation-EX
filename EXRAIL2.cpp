@@ -313,7 +313,14 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
         byte opcode=GET_OPCODE;
         if (opcode==OPCODE_ENDEXRAIL) break;
         if (opcode==OPCODE_LCC)  StringFormatter::send(stream,F("<LS x%h>\n"),getOperand(progCounter,0));   
-      }
+        if (opcode==OPCODE_LCCX) { // long form LCC
+           StringFormatter::send(stream,F("<LS x%h%h%h%h>\n"),
+                 getOperand(progCounter,1),
+                 getOperand(progCounter,2),
+                 getOperand(progCounter,3),
+                 getOperand(progCounter,0)
+                 );        
+        }}
       
       // we stream the hex events we wish to listen to
       // and at the same time build the event index looku.
@@ -1010,9 +1017,19 @@ void RMFT2::loop2() {
     }
     break;
 
-  case OPCODE_LCC:
+  case OPCODE_LCC:  // short form LCC
        if (LCCSerial) StringFormatter::send(LCCSerial,F("<L x%h>"),(uint16_t)operand);
-       break;  
+       break; 
+
+  case OPCODE_LCCX: // long form LCC
+       if (LCCSerial)
+            StringFormatter::send(LCCSerial,F("<L x%h%h%h%h>\n"),
+                 getOperand(progCounter,1),
+                 getOperand(progCounter,2),
+                 getOperand(progCounter,3),
+                 getOperand(progCounter,0)
+                 );    
+        break;  
     
   case OPCODE_SERVO: // OPCODE_SERVO,V(vpin),OPCODE_PAD,V(position),OPCODE_PAD,V(profile),OPCODE_PAD,V(duration)
     IODevice::writeAnalogue(operand,getOperand(1),getOperand(2),getOperand(3));

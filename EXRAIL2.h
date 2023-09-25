@@ -63,7 +63,7 @@ enum OPCODE : byte {OPCODE_THROW,OPCODE_CLOSE,
              OPCODE_ONCHANGE,
              OPCODE_ONCLOCKTIME,
              OPCODE_ONTIME,
-             OPCODE_LCC,OPCODE_ONLCC,
+             OPCODE_LCC,OPCODE_LCCX,OPCODE_ONLCC,
              OPCODE_ONOVERLOAD,
 
              // OPcodes below this point are skip-nesting IF operations
