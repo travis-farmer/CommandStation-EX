@@ -75,6 +75,30 @@ void exrailHalSetup() {
    #include "myAutomation.h"
 }
 
+// Pass 1c detect compile time featurtes
+#include "EXRAIL2MacroReset.h"
+#undef SIGNAL
+#define SIGNAL(redpin,amberpin,greenpin) | FEATURE_SIGNAL 
+#undef SIGNALH
+#define SIGNALH(redpin,amberpin,greenpin) | FEATURE_SIGNAL 
+#undef SERVO_SIGNAL
+#define SERVO_SIGNAL(vpin,redval,amberval,greenval) | FEATURE_SIGNAL 
+#undef DCC_SIGNAL
+#define DCC_SIGNAL(id,addr,subaddr) | FEATURE_SIGNAL
+#undef VIRTUAL_SIGNAL
+#define VIRTUAL_SIGNAL(id) | FEATURE_SIGNAL
+
+#undef LCC
+#define LCC(eventid)  | FEATURE_LCC
+#undef LCCX
+#define LCCX(senderid,eventid) | FEATURE_LCC 
+#undef ONLCC
+#define ONLCC(senderid,eventid) | FEATURE_LCC
+
+const byte RMFT2::compileFeatures = 0
+   #include "myAutomation.h"
+;
+
 // Pass 2 create throttle route list 
 #include "EXRAIL2MacroReset.h"
 #undef ROUTE

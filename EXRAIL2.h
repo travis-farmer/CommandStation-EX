@@ -91,7 +91,10 @@ enum thrunger: byte {
   thrunge_lcd,  // Must be last!!
   };
 
-
+  // Flag bits for compile time feature
+  static const byte FEATURE_SIGNAL= 0x80;
+  static const byte FEATURE_LCC   = 0x40;
+  
  
   // Flag bits for status of hardware and TPL
   static const byte SECTION_FLAG = 0x80;
@@ -198,6 +201,7 @@ private:
    
    static const int countLCCLookup;
    static int onLCCLookup[];
+   static const byte compileFeatures;
     
   // Local variables - exist for each instance/task 
     RMFT2 *next;   // loop chain 

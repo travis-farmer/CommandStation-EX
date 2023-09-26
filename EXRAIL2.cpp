@@ -174,9 +174,6 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
   onCloseLookup=LookListLoader(OPCODE_ONCLOSE);
   onActivateLookup=LookListLoader(OPCODE_ONACTIVATE);
   onDeactivateLookup=LookListLoader(OPCODE_ONDEACTIVATE);
-  onRedLookup=LookListLoader(OPCODE_ONRED);
-  onAmberLookup=LookListLoader(OPCODE_ONAMBER);
-  onGreenLookup=LookListLoader(OPCODE_ONGREEN);
   onChangeLookup=LookListLoader(OPCODE_ONCHANGE);
   onClockLookup=LookListLoader(OPCODE_ONTIME);
   onOverloadLookup=LookListLoader(OPCODE_ONOVERLOAD);
@@ -184,11 +181,17 @@ LookList* RMFT2::LookListLoader(OPCODE op1, OPCODE op2, OPCODE op3) {
 
   // Second pass startup, define any turnouts or servos, set signals red
   // add sequences onRoutines to the lookups
-  for (int sigslot=0;;sigslot++) {
-    VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
-    if (sigid==0) break;  // end of signal list
-    doSignal(sigid & SIGNAL_ID_MASK, SIGNAL_RED);
+  if (compileFeatures & FEATURE_SIGNAL) {
+    onRedLookup=LookListLoader(OPCODE_ONRED);
+    onAmberLookup=LookListLoader(OPCODE_ONAMBER);
+    onGreenLookup=LookListLoader(OPCODE_ONGREEN);
+    for (int sigslot=0;;sigslot++) {
+      VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
+      if (sigid==0) break;  // end of signal list
+      doSignal(sigid & SIGNAL_ID_MASK, SIGNAL_RED);
+    }
   }
+
 
   int progCounter;
   for (progCounter=0;; SKIPOP){
@@ -305,6 +308,8 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
     break;
 
   case 'L':
+    if (compileFeatures & FEATURE_LCC) { 
+      // This entire code block is compiled out if LLC macros not used 
     if (paramCount==0) {  //<L>  LCC adapter introducing self
       LCCSerial=stream;   // now we know where to send events we raise
 
@@ -352,6 +357,7 @@ void RMFT2::ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16
         if (!reject)  startNonRecursiveTask(F("LCC"),eventid,onLCCLookup[eventid]);
         opcode=0;
     }
+    }
     break; 
 
   default:  // other commands pass through
@@ -387,17 +393,19 @@ bool RMFT2::parseSlash(Print * stream, byte & paramCount, int16_t p[]) {
 	      if (flag & LATCH_FLAG) StringFormatter::send(stream,F(" LATCHED"));
       }
     }
-    // do the signals
-    // flags[n] represents the state of the nth signal in the table 
-    for (int sigslot=0;;sigslot++) {
-      VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
-      if (sigid==0) break; // end of signal list 
-      byte flag=flags[sigslot] & SIGNAL_MASK; // obtain signal flags for this id
-      StringFormatter::send(stream,F("\n%S[%d]"), 
-        (flag == SIGNAL_RED)? F("RED") : (flag==SIGNAL_GREEN) ? F("GREEN") : F("AMBER"),
-        sigid & SIGNAL_ID_MASK); 
-    } 
-    
+
+    if (compileFeatures & FEATURE_SIGNAL) {
+      // do the signals
+      // flags[n] represents the state of the nth signal in the table 
+      for (int sigslot=0;;sigslot++) {
+        VPIN sigid=GETHIGHFLASHW(RMFT2::SignalDefinitions,sigslot*8);
+        if (sigid==0) break; // end of signal list 
+        byte flag=flags[sigslot] & SIGNAL_MASK; // obtain signal flags for this id
+        StringFormatter::send(stream,F("\n%S[%d]"), 
+          (flag == SIGNAL_RED)? F("RED") : (flag==SIGNAL_GREEN) ? F("GREEN") : F("AMBER"),
+          sigid & SIGNAL_ID_MASK); 
+      } 
+    }
     StringFormatter::send(stream,F(" *>\n"));
     return true;
   }
@@ -1018,11 +1026,12 @@ void RMFT2::loop2() {
     break;
 
   case OPCODE_LCC:  // short form LCC
-       if (LCCSerial) StringFormatter::send(LCCSerial,F("<L x%h>"),(uint16_t)operand);
+      if ((compileFeatures & FEATURE_LCC) && LCCSerial) 
+          StringFormatter::send(LCCSerial,F("<L x%h>"),(uint16_t)operand);
        break; 
 
   case OPCODE_LCCX: // long form LCC
-       if (LCCSerial)
+       if ((compileFeatures & FEATURE_LCC) && LCCSerial)
             StringFormatter::send(LCCSerial,F("<L x%h%h%h%h>\n"),
                  getOperand(progCounter,1),
                  getOperand(progCounter,2),
@@ -1122,6 +1131,7 @@ int16_t RMFT2::getSignalSlot(int16_t id) {
 }
 
 /* static */ void RMFT2::doSignal(int16_t id,char rag) {
+  if (!(compileFeatures & FEATURE_SIGNAL)) return; // dont compile code below
   if (diag) DIAG(F(" doSignal %d %x"),id,rag);
   
   // Schedule any event handler for this signal change.
@@ -1189,6 +1199,7 @@ int16_t RMFT2::getSignalSlot(int16_t id) {
 }
 
 /* static */ bool RMFT2::isSignal(int16_t id,char rag) {
+  if (!(compileFeatures & FEATURE_LCC)) return false; 
   int16_t sigslot=getSignalSlot(id);
   if (sigslot<0) return false; 
   return (flags[sigslot] & SIGNAL_MASK) == rag;
