@@ -91,9 +91,10 @@ enum thrunger: byte {
   thrunge_lcd,  // Must be last!!
   };
 
-  // Flag bits for compile time feature
+  // Flag bits for compile time features.
   static const byte FEATURE_SIGNAL= 0x80;
   static const byte FEATURE_LCC   = 0x40;
+  static const byte FEATURE_ROSTER= 0x20;
   
  
   // Flag bits for status of hardware and TPL
