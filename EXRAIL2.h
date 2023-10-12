@@ -25,6 +25,7 @@
 #include "FSH.h"
 #include "IODevice.h"
 #include "Turnouts.h"
+#include "Turntables.h"
    
 // The following are the operation codes (or instructions) for a kind of virtual machine.
 // Each instruction is normally 3 bytes long with an operation code followed by a parameter.
@@ -58,11 +59,15 @@ enum OPCODE : byte {OPCODE_THROW,OPCODE_CLOSE,
              OPCODE_ROSTER,OPCODE_KILLALL,
              OPCODE_ROUTE,OPCODE_AUTOMATION,OPCODE_SEQUENCE,
              OPCODE_ENDTASK,OPCODE_ENDEXRAIL,
-             OPCODE_SET_TRACK,
+             OPCODE_SET_TRACK,OPCODE_SET_POWER,
              OPCODE_ONRED,OPCODE_ONAMBER,OPCODE_ONGREEN,
              OPCODE_ONCHANGE,
              OPCODE_ONCLOCKTIME,
              OPCODE_ONTIME,
+#ifndef IO_NO_HAL
+             OPCODE_TTADDPOSITION,OPCODE_DCCTURNTABLE,OPCODE_EXTTTURNTABLE,
+             OPCODE_ONROTATE,OPCODE_ROTATE,OPCODE_IFTTPOSITION,OPCODE_WAITFORTT,
+#endif
              OPCODE_LCC,OPCODE_LCCX,OPCODE_ONLCC,
              OPCODE_ONOVERLOAD,
 
@@ -137,6 +142,7 @@ class LookList {
     static void activateEvent(int16_t addr, bool active);
     static void changeEvent(int16_t id, bool change);
     static void clockEvent(int16_t clocktime, bool change);
+    static void rotateEvent(int16_t id, bool change);
     static void powerEvent(int16_t track, bool overload);
     static const int16_t SERVO_SIGNAL_FLAG=0x4000;
     static const int16_t ACTIVE_HIGH_SIGNAL_FLAG=0x2000;
@@ -152,6 +158,8 @@ class LookList {
   static const FSH *  getTurnoutDescription(int16_t id);
   static const FSH *  getRosterName(int16_t id);
   static const FSH *  getRosterFunctions(int16_t id);
+  static const FSH *  getTurntableDescription(int16_t id);
+  static const FSH *  getTurntablePositionDescription(int16_t turntableId, uint8_t positionId);
     
 private: 
     static void ComandFilter(Print * stream, byte & opcode, byte & paramCount, int16_t p[]);
@@ -164,6 +172,9 @@ private:
     static bool isSignal(int16_t id,char rag); 
     static int16_t getSignalSlot(int16_t id);
     static void setTurnoutHiddenState(Turnout * t);
+    #ifndef IO_NO_HAL
+    static void setTurntableHiddenState(Turntable * tto);
+    #endif
     static LookList* LookListLoader(OPCODE op1,
                       OPCODE op2=OPCODE_ENDEXRAIL,OPCODE op3=OPCODE_ENDEXRAIL);
     static void handleEvent(const FSH* reason,LookList* handlers, int16_t id);
@@ -198,6 +209,9 @@ private:
    static LookList * onGreenLookup;
    static LookList * onChangeLookup;
    static LookList * onClockLookup;
+#ifndef IO_NO_HAL
+   static LookList * onRotateLookup;
+#endif
    static LookList * onOverloadLookup;
    
    static const int countLCCLookup;

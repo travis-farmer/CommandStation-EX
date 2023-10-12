@@ -3,7 +3,32 @@
 
 #include "StringFormatter.h"
 
-#define VERSION "5.1.5LCC"
+#define VERSION "5.1.13"
+// 5.1.13 - Changed turntable broadcast from i to I due to server string conflict
+// 5.1.12 - Added Power commands <0 A> & <1 A> etc. and update to <=>
+//          Added EXRAIL SET_POWER(track, ON/OFF)
+//          Fixed a problem whereby <1 MAIN> also powered on PROG track
+//          Added functions to TrackManager.cpp to allow UserAddin code for power display on OLED/LCD
+//          Added - returnMode(byte t), returnDCAddr(byte t) & getModeName(byte Mode)
+// 5.1.11 - STM32F4xx revised I2C clock setup, no correctly sets clock and has fully variable frequency selection
+// 5.1.10 - STM32F4xx DCCEXanalogWrite to handle PWM generation for TrackManager DC/DCX
+//        - STM32F4xx DCC 58uS timer now using non-PWM output timers where possible
+//        - ESP32 brakeCanPWM check now detects UNUSED_PIN
+//        - ARM architecture brakeCanPWM now uses digitalPinHasPWM()
+//        - STM32F4xx shadowpin extensions to handle pins on ports D, E and F
+// 5.1.9  - Fixed IO_PCA9555'h to work with PCA9548 mux, tested OK
+// 5.1.8  - STM32Fxx ADCee extension to support ADCs #2 and #3
+// 5.1.7  - Fix turntable broadcasts for non-movement activities and <JP> result
+// 5.1.6  - STM32F4xx native I2C driver added
+// 5.1.5  - Added turntable object and EXRAIL commands
+//        - <I ...>, <JO ...>, <JP ...> - turntable commands
+//        - DCC_TURNTABLE, EXTT_TURNTABLE, IFTTPOSITION, ONROTATE, ROTATE, ROTATE_DCC, TT_ADDPOSITION, WAITFORTT EXRAIL
+// 5.1.4  - Added ONOVERLOAD & AFTEROVERLOAD to EXRAIL
+// 5.1.3  - Make parser more fool proof
+// 5.1.2  - Bugfix: ESP32 30ms off time
+// 5.1.1  - Check bad AT firmware version
+//        - Update IO_PCA9555.h reflecting IO_MCP23017.h changes to support PCA9548 mux
+// 5.0.1  - Bugfix: execute 30ms off time before rejoin
 // 5.0.0  - Make 4.2.69 the 5.0.0 release
 // 4.2.69 - Bugfix: Make <!> work in DC mode
 // 4.2.68 - Rename track mode OFF to NONE

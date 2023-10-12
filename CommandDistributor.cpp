@@ -161,6 +161,10 @@ void  CommandDistributor::broadcastTurnout(int16_t id, bool isClosed ) {
 #endif
 }
 
+void CommandDistributor::broadcastTurntable(int16_t id, uint8_t position, bool moving) {
+  broadcastReply(COMMAND_TYPE, F("<I %d %d %d>\n"), id, position, moving);
+}
+
 void  CommandDistributor::broadcastClockTime(int16_t time, int8_t rate) {
   // The JMRI clock command is of the form : PFT65871<;>4
   // The CS broadcast is of the form "<jC mmmm nn" where mmmm is time minutes and dd speed
@@ -265,6 +269,6 @@ void CommandDistributor::broadcastRaw(clientType type, char * msg) {
   broadcastReply(type, F("%s"),msg);
 }
 
-void CommandDistributor::broadcastTrackState(const FSH* format,byte trackLetter,int16_t dcAddr) {
-  broadcastReply(COMMAND_TYPE, format,trackLetter,dcAddr);
+void CommandDistributor::broadcastTrackState(const FSH* format,byte trackLetter, int16_t dcAddr) {
+  broadcastReply(COMMAND_TYPE, format,trackLetter, dcAddr);
 }
