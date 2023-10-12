@@ -1199,7 +1199,7 @@ int16_t RMFT2::getSignalSlot(int16_t id) {
 }
 
 /* static */ bool RMFT2::isSignal(int16_t id,char rag) {
-  if (!(compileFeatures & FEATURE_LCC)) return false; 
+  if (!(compileFeatures & FEATURE_SIGNAL)) return false; 
   int16_t sigslot=getSignalSlot(id);
   if (sigslot<0) return false; 
   return (flags[sigslot] & SIGNAL_MASK) == rag;
