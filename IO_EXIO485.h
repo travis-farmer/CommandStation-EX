@@ -1,5 +1,6 @@
 /*
 *  © 2024, Travis Farmer. All rights reserved.
+*  © 2024, https://github.com/appnostic-io/Appnostic_SC16IS7XX_Arduino_Library
 *   
 *  This file is part of DCC++EX API
 *
@@ -16,6 +17,165 @@
 *  You should have received a copy of the GNU General Public License
 *  along with CommandStation.  If not, see <https://www.gnu.org/licenses/>.
 */
+#ifndef IO_EXIO485_H
+#define IO_EXIO485_H
+
+#include "IODevice.h"
+#include "Arduino.h"
+//#include "I2CManager.h"
+
+// Device Address
+
+// A:VDD
+// B:GND
+// C:SCL
+// D:SDA
+/*#define SC16IS7XX_ADDRESS_AA 0X90
+#define SC16IS7XX_ADDRESS_AB 0X92
+#define SC16IS7XX_ADDRESS_AC 0X94
+#define SC16IS7XX_ADDRESS_AD 0X96
+#define SC16IS7XX_ADDRESS_BA 0X98
+#define SC16IS7XX_ADDRESS_BB 0X9A
+#define SC16IS7XX_ADDRESS_BC 0X9C
+#define SC16IS7XX_ADDRESS_BD 0X9E
+#define SC16IS7XX_ADDRESS_CA 0XA0
+#define SC16IS7XX_ADDRESS_CB 0XA2
+#define SC16IS7XX_ADDRESS_CC 0XA4
+#define SC16IS7XX_ADDRESS_CD 0XA6
+#define SC16IS7XX_ADDRESS_DA 0XA8
+#define SC16IS7XX_ADDRESS_DB 0XAA
+#define SC16IS7XX_ADDRESS_DC 0XAC
+#define SC16IS7XX_ADDRESS_DD 0XAE*/
+
+class Appnostic_SC16IS7XX : public Stream {
+private:
+    uint8_t device_address = 0X90;
+    uint32_t crystal_frequency = 14745600UL;
+
+    // methods that need to be implemented by derived classes
+    virtual bool ping();
+    virtual void resetDevice();
+
+protected:
+    static bool _initialized;
+
+public:
+    // constructor
+    Appnostic_SC16IS7XX() {};
+    ~Appnostic_SC16IS7XX() {};
+    enum {
+    SC16IS7XX_REG_RHR = 0x00,
+    SC16IS7XX_REG_THR = 0X00,
+    SC16IS7XX_REG_IER = 0X01,
+    SC16IS7XX_REG_FCR = 0X02,
+    SC16IS7XX_REG_IIR = 0X02,
+    SC16IS7XX_REG_LCR = 0X03,
+    SC16IS7XX_REG_MCR = 0X04,
+    SC16IS7XX_REG_LSR = 0X05,
+    SC16IS7XX_REG_MSR = 0X06,
+    SC16IS7XX_REG_SPR = 0X07,
+    SC16IS7XX_REG_TCR = 0X06,
+    SC16IS7XX_REG_TLR = 0X07,
+    SC16IS7XX_REG_TXLVL = 0X08,
+    SC16IS7XX_REG_RXLVL = 0X09,
+    SC16IS7XX_REG_IODIR = 0X0A,
+    SC16IS7XX_REG_IOSTATE = 0X0B,
+    SC16IS7XX_REG_IOINTENA = 0X0C,
+    SC16IS7XX_REG_IOCONTROL = 0X0E,
+    SC16IS7XX_REG_EFCR = 0X0F,
+    SC16IS7XX_REG_DLL = 0x00,
+    SC16IS7XX_REG_DLH = 0X01,
+    SC16IS7XX_REG_EFR = 0X02,
+    SC16IS7XX_REG_XON1 = 0X04,
+    SC16IS7XX_REG_XON2 = 0X05,
+    SC16IS7XX_REG_XOFF1 = 0X06,
+    SC16IS7XX_REG_XOFF2 = 0X07,
+  };
+    // stream reading
+    virtual int read();
+    virtual int available();
+    virtual int peek();
+    // virtual String readStringUntil(char teminator);
+
+    // stream writing
+    virtual size_t write(uint8_t val);
+    virtual size_t write(const uint8_t *buf, size_t size);
+    using Print::write; // write(str) and write(buf, size)
+    virtual void flush();
+
+    // i2c
+    bool begin_i2c(uint8_t addr);
+    bool begin_i2c();
+
+    // configuration
+    void setCrystalFrequency(uint32_t frequency);
+    uint32_t getCrystalFrequency();
+
+    // registers
+    void writeRegister(uint8_t reg_addr, uint8_t val);
+    uint8_t readRegister(uint8_t reg_addr);
+
+    void setPortState(uint8_t state);
+    uint8_t getPortState();
+    void setPortMode(uint8_t mode);
+    uint8_t getPortMode();
+    void setGPIOLatch(bool enabled);
+};
+
+#define SC16IS752_CHANNEL_A 0x00
+#define SC16IS752_CHANNEL_B 0x01
+#define SC16IS752_CHANNEL_BOTH 0x00
+
+typedef struct
+{
+    bool fifo = true;
+    bool baud = 115200;
+    uint8_t bits = 8;
+    bool parity = false;
+    uint8_t stopBits = 1;
+} uart_settings_t;
+
+class Appnostic_SC16IS752 : public Appnostic_SC16IS7XX
+{
+private:
+    uart_settings_t settings;
+    uint8_t channel;
+    uint8_t peek_flag = 0;
+    int peek_buf = -1;
+    uint8_t fifo_available = 0;
+
+    uint8_t FIFOAvailableData();
+    uint8_t FIFOAvailableSpace();
+
+public:
+    Appnostic_SC16IS752(uint8_t channel=0X00);
+
+    // reading and writing from registers
+    void writeRegister(uint8_t channel, uint8_t reg_addr, uint8_t val);
+    uint8_t readRegister(uint8_t channel, uint8_t reg_addr);
+
+    // derived functions from base class
+    virtual bool ping() override;
+
+    // uart configuration
+    void setFIFO(bool enabled);
+    void resetFIFO(bool rx);
+    void setFIFOTriggerLevel(bool rx, uint8_t length);
+    void setBaudrate(uint32_t baudRate);
+    void setLine(uint8_t bits, uint8_t parity, uint8_t stopBits);
+
+    // stream reading
+    int read();
+    int available();
+    int peek();
+
+    // stream writing
+    size_t write(uint8_t val);
+    size_t write(const uint8_t *buf, size_t size);
+    void flush();
+};
+
+//extern Appnostic_SC16IS752 ExtSerial;
 
 /*
  * EXIO485
@@ -41,10 +201,7 @@
  * nodeID = 1-252
  */
 
-#ifndef IO_EXIO485_H
-#define IO_EXIO485_H
 
-#include "IODevice.h"
 
 class EXIO485;
 class EXIO485node;
@@ -523,10 +680,13 @@ struct Task {
     EXIOWRAN = 0xEA,   // Flag we're sending an analogue write (PWM)
     EXIOERR = 0xEF,     // Flag we've received an error
   };
-  static void create(uint8_t busNo, HardwareSerial &serial, unsigned long baud, int8_t txPin=-1) {
-    new EXIO485(busNo, serial, baud, txPin);
+  static void create(uint8_t busNo, uint8_t i2c_addr, unsigned long baud=115200, uint32_t xtal_freq=147456000) {
+    new EXIO485(busNo, i2c_addr, baud, xtal_freq);
   }
-  HardwareSerial* _serial;
+  uint32_t _xtal_freq;
+  uint8_t _i2c_addr;
+  Appnostic_SC16IS752 ExtSerialA;
+  //HardwareSerial* _serial;
   int _CommMode = 0;
   int _opperation = 0;
   uint16_t _pullup;
@@ -551,12 +711,17 @@ struct Task {
   unsigned long taskCounter=0ul;
   // Device-specific initialisation
   void _begin() override {
-    _serial->begin(_baud, SERIAL_8N1);
-    if (_txPin >0) {
-      pinMode(_txPin, OUTPUT);
-      digitalWrite(_txPin, LOW);
-      
+    if (!ExtSerialA.begin_i2c())
+    {
+        DIAG(F("EX-IOExplorer485: I2C Module not found!"));
+        _deviceState = DEVSTATE_FAILED;
+    } else {
+      DIAG(F("EX-IOExplorer485: I2C Module was found. address: 0x%x"),_i2c_addr);
     }
+    ExtSerialA.setFIFO(true); // enable fifo
+    ExtSerialA.setCrystalFrequency(_xtal_freq);
+    ExtSerialA.setBaudrate(_baud);
+    ExtSerialA.setLine(8, 0, 1); // 8,n,1
   
   #if defined(DIAG_IO)
     _display();
@@ -602,7 +767,7 @@ struct Task {
   }
 
 protected:
-  EXIO485(uint8_t busNo, HardwareSerial &serial, unsigned long baud, int8_t txPin);
+  EXIO485(uint8_t busNo, uint8_t i2c_addr, unsigned long baud, uint32_t xtal_freq);
 
 public:
   

@@ -1,6 +1,7 @@
 /*
  *  © 2024, Travis Farmer. All rights reserved.
- *  
+ *  © 2024, https://github.com/appnostic-io/Appnostic_SC16IS7XX_Arduino_Library
+ * 
  *  This file is part of DCC++EX API
  *
  *  This is free software: you can redistribute it and/or modify
@@ -20,6 +21,478 @@
 #include "IO_EXIO485.h"
 #include "defines.h"
 
+bool Appnostic_SC16IS7XX::_initialized = false;
+
+/*** REGISTERS *****************************************************/
+
+/**
+ * @brief writes to the register of the device via i2c or spi
+ * @param channel
+ * @param reg_addr
+ * @param val
+ */
+void Appnostic_SC16IS7XX::writeRegister(uint8_t reg_addr, uint8_t val)
+{
+  uint8_t buf[] = {reg_addr, val};
+  I2CManager.write(device_address,buf,2);
+}
+
+/**
+ * @brief reads a register from the device via i2c or spi
+ * @param channel
+ * @param reg_addr
+ * @return
+ */
+uint8_t Appnostic_SC16IS7XX::readRegister(uint8_t reg_addr)
+{
+  uint8_t write_buf[1] = {reg_addr};
+  uint8_t read_buf[1];
+  I2CManager.read(device_address, write_buf, 1, read_buf, 1);
+
+  return read_buf[0];
+}
+
+/*** CONFIG *******************************************************/
+
+/**
+ * @brief sets the crystal frequency in hertz. nos8007 has a 14.7456MHz XTAL
+ * @note not normally called for nos8007. defaults to 147456000 (Hz)
+ * @param frequency
+ */
+void Appnostic_SC16IS7XX::setCrystalFrequency(uint32_t frequency)
+{
+    crystal_frequency = frequency;
+}
+
+/**
+ * @brief gets the xtal frequency in hertz.
+ * @return
+ */
+uint32_t Appnostic_SC16IS7XX::getCrystalFrequency()
+{
+    return crystal_frequency;
+}
+
+/*** DEVICE *******************************************************/
+
+/**
+ * @brief derived function to reset the device
+ */
+void Appnostic_SC16IS7XX::resetDevice()
+{
+    uint8_t reg;
+
+    reg = readRegister(SC16IS7XX_REG_IOCONTROL << 3);
+    reg |= 0x08;
+    writeRegister(SC16IS7XX_REG_IOCONTROL << 3, reg);
+}
+
+/*** I2C *********************************************************/
+
+/**
+ * @brief begins an i2c session for the target address
+ * @param addr
+ * @return
+ */
+bool Appnostic_SC16IS7XX::begin_i2c(uint8_t addr)
+{
+
+    if ((addr >= 0x48) && (addr <= 0x57))
+    {
+        device_address = addr;
+    }
+    else
+    {
+        device_address = (addr >> 1);
+    }
+
+    if (_initialized == true)
+    {
+        return true; // i2c already running
+    }
+
+    I2CManager.begin();
+    bool retVal = I2CManager.exists(device_address);
+    return retVal;
+}
+
+/**
+ * @brief shorthand method to start i2c as nos8007 default address
+ * @return
+ */
+bool Appnostic_SC16IS7XX::begin_i2c()
+{
+    return begin_i2c(0X90);
+}
+
+
+void Appnostic_SC16IS7XX::setPortState(uint8_t state)
+{
+    writeRegister(SC16IS7XX_REG_IOSTATE << 3, state);
+}
+
+uint8_t Appnostic_SC16IS7XX::getPortState()
+{
+    return readRegister(SC16IS7XX_REG_IOSTATE << 3);
+}
+
+void Appnostic_SC16IS7XX::setPortMode(uint8_t mode)
+{
+    writeRegister(SC16IS7XX_REG_IODIR << 3, mode);
+}
+
+uint8_t Appnostic_SC16IS7XX::getPortMode()
+{
+    return readRegister(SC16IS7XX_REG_IODIR << 3);
+}
+
+void Appnostic_SC16IS7XX::setGPIOLatch(bool enabled)
+{
+    uint8_t tmp_iocontrol;
+
+    tmp_iocontrol = readRegister(SC16IS7XX_REG_IOCONTROL << 3);
+    if (enabled == false)
+    {
+        tmp_iocontrol &= 0xFE;
+    }
+    else
+    {
+        tmp_iocontrol |= 0x01;
+    }
+    writeRegister(SC16IS7XX_REG_IOCONTROL << 3, tmp_iocontrol);
+}
+
+/**
+ * @brief constructor for SC16IS752
+ * @param channel
+ */
+Appnostic_SC16IS752::Appnostic_SC16IS752(uint8_t channel)
+{
+    Appnostic_SC16IS752::channel = channel;
+    Appnostic_SC16IS752::peek_flag = 0;
+}
+
+/**
+ * @brief   slight modification of the register write function to
+ *          allow for the separate channels of the SC16IS752
+ * @note    uses Appnostic_SC16IS7XX::writeRegister
+ * @param channel 0 or 1
+ * @param reg_addr
+ * @param val
+ */
+void Appnostic_SC16IS752::writeRegister(uint8_t channel, uint8_t reg_addr, uint8_t val)
+{
+    Appnostic_SC16IS7XX::writeRegister((reg_addr << 3 | channel << 1), val);
+}
+
+/**
+ * @brief   slight modification of the register read function to
+ *          allow for the separate channels of the SC16IS752
+ * @note    uses Appnostic_SC16IS7XX::readRegister
+ * @param channel
+ * @param reg_addr
+ * @return
+ */
+uint8_t Appnostic_SC16IS752::readRegister(uint8_t channel, uint8_t reg_addr)
+{
+    return Appnostic_SC16IS7XX::readRegister((reg_addr << 3 | channel << 1));
+}
+
+/*** DERIVED FUNCTIONS **********************************************/
+
+/**
+ * @brief tests the device to check if it is online
+ * @return
+ */
+bool Appnostic_SC16IS752::ping()
+{
+    writeRegister(SC16IS752_CHANNEL_A, SC16IS7XX_REG_SPR, 0x55);
+
+    if (readRegister(SC16IS752_CHANNEL_A, SC16IS7XX_REG_SPR) == 0x55)
+    {
+        return true;
+    }
+
+    writeRegister(SC16IS752_CHANNEL_A, SC16IS7XX_REG_SPR, 0xAA);
+
+    if (readRegister(SC16IS752_CHANNEL_A, SC16IS7XX_REG_SPR) == 0xAA)
+    {
+        return true;
+    }
+
+    writeRegister(SC16IS752_CHANNEL_B, SC16IS7XX_REG_SPR, 0x55);
+
+    if (readRegister(SC16IS752_CHANNEL_B, SC16IS7XX_REG_SPR) == 0x55)
+    {
+        return true;
+    }
+
+    writeRegister(SC16IS752_CHANNEL_B, SC16IS7XX_REG_SPR, 0xAA);
+
+    if (readRegister(SC16IS752_CHANNEL_B, SC16IS7XX_REG_SPR) == 0xAA)
+    {
+        return true;
+    }
+
+    return false;
+}
+
+/*** UART CONFIGURATION *****************************************/
+
+/**
+ * @brief enables fifo buffer
+ * @param enabled
+ */
+void Appnostic_SC16IS752::setFIFO(bool enabled)
+{
+    settings.fifo = enabled;
+
+    uint8_t tmp_fcr;
+
+    tmp_fcr = readRegister(channel, SC16IS7XX_REG_FCR);
+
+    if (enabled == false)
+    {
+        tmp_fcr &= 0xFE;
+    }
+    else
+    {
+        tmp_fcr |= 0x01;
+    }
+
+    writeRegister(channel, SC16IS7XX_REG_FCR, tmp_fcr);
+}
+
+/**
+ * @brief resets tx or rx fifo buffer
+ * @param rx
+ */
+void Appnostic_SC16IS752::resetFIFO(bool rx)
+{
+    uint8_t tmp_fcr;
+
+    tmp_fcr = readRegister(channel, SC16IS7XX_REG_FCR);
+
+    if (rx == false)
+    {
+        tmp_fcr |= 0x04;
+    }
+    else
+    {
+        tmp_fcr |= 0x02;
+    }
+    writeRegister(channel, SC16IS7XX_REG_FCR, tmp_fcr);
+}
+
+void Appnostic_SC16IS752::setFIFOTriggerLevel(bool rx, uint8_t length)
+{
+    uint8_t tmp_reg;
+
+    tmp_reg = readRegister(channel, SC16IS7XX_REG_MCR);
+    tmp_reg |= 0x04;
+    writeRegister(channel, SC16IS7XX_REG_MCR, tmp_reg); // SET MCR[2] to '1' to use TLR register or trigger level control in FCR register
+
+    tmp_reg = readRegister(channel, SC16IS7XX_REG_EFR);
+    writeRegister(channel, SC16IS7XX_REG_EFR, tmp_reg | 0x10); // set ERF[4] to '1' to use the  enhanced features
+    if (rx == false)
+    {
+        writeRegister(channel, SC16IS7XX_REG_TLR, length << 4); // Tx FIFO trigger level setting
+    }
+    else
+    {
+        writeRegister(channel, SC16IS7XX_REG_TLR, length); // Rx FIFO Trigger level setting
+    }
+    writeRegister(channel, SC16IS7XX_REG_EFR, tmp_reg); // restore EFR register
+}
+
+/**
+ * @brief sets the baud rate. nos8007 has been tested to 921600
+ * @param baudRate
+ */
+void Appnostic_SC16IS752::setBaudrate(uint32_t baudRate)
+{
+    settings.baud = baudRate;
+
+    uint16_t divisor;
+    uint8_t prescaler;
+    uint8_t tmp_lcr;
+
+    if ((readRegister(channel, SC16IS7XX_REG_MCR) & 0x80) == 0)
+    {
+        prescaler = 1;
+    }
+    else
+    {
+        prescaler = 4;
+    }
+
+    divisor = (getCrystalFrequency() / prescaler) / (baudRate * 16);
+
+    tmp_lcr = readRegister(channel, SC16IS7XX_REG_LCR);
+    tmp_lcr |= 0x80;
+    writeRegister(channel, SC16IS7XX_REG_LCR, tmp_lcr);
+
+    // write to DLL
+    writeRegister(channel, SC16IS7XX_REG_DLL, (uint8_t)divisor);
+
+    // write to DLH
+    writeRegister(channel, SC16IS7XX_REG_DLH, (uint8_t)(divisor >> 8));
+    tmp_lcr &= 0x7F;
+    writeRegister(channel, SC16IS7XX_REG_LCR, tmp_lcr);
+}
+
+/**
+ * @brief sets the line parameters
+ * @param bits
+ * @param parity
+ * @param stopBits
+ */
+void Appnostic_SC16IS752::setLine(uint8_t bits, uint8_t parity, uint8_t stopBits)
+{
+    uint8_t tmp_lcr;
+
+    settings.bits = bits;
+    settings.parity = parity;
+    settings.stopBits = stopBits;
+
+    tmp_lcr = readRegister(channel, SC16IS7XX_REG_LCR);
+    tmp_lcr &= 0xC0; // Clear the lower six bit of LCR (LCR[0] to LCR[5]
+
+    // data bit length
+    switch (settings.bits)
+    {
+    case 5:
+        break;
+    case 6:
+        tmp_lcr |= 0x01;
+        break;
+    case 7:
+        tmp_lcr |= 0x02;
+        break;
+    case 8:
+        tmp_lcr |= 0x03;
+        break;
+    default:
+        tmp_lcr |= 0x03;
+        break;
+    }
+
+    // stop bits
+    if (settings.stopBits == 2)
+    {
+        tmp_lcr |= 0x04;
+    }
+
+    // parity
+    switch (parity)
+    {
+    case 0: // no parity
+        break;
+    case 1: // odd parity
+        tmp_lcr |= 0x08;
+        break;
+    case 2: // even parity
+        tmp_lcr |= 0x18;
+        break;
+    case 3: // force '1' parity
+        tmp_lcr |= 0x03;
+        break;
+    case 4: // force '0' parity
+        break;
+    default:
+        break;
+    }
+
+    writeRegister(channel, SC16IS7XX_REG_LCR, tmp_lcr);
+}
+
+uint8_t Appnostic_SC16IS752::FIFOAvailableData()
+{
+    if (fifo_available == 0)
+    {
+        fifo_available = readRegister(channel, SC16IS7XX_REG_RXLVL);
+    }
+    return fifo_available;
+}
+
+uint8_t Appnostic_SC16IS752::FIFOAvailableSpace()
+{
+    return readRegister(channel, SC16IS7XX_REG_TXLVL);
+}
+
+int Appnostic_SC16IS752::read()
+{
+    volatile uint8_t val;
+
+    if (FIFOAvailableData() == 0)
+    {
+        return -1;
+    }
+    else
+    {
+        if (fifo_available > 0)
+        {
+            --fifo_available;
+        }
+        val = readRegister(channel, SC16IS7XX_REG_RHR);
+        return val;
+    }
+}
+
+int Appnostic_SC16IS752::available()
+{
+    return readRegister(channel, SC16IS7XX_REG_RXLVL);
+}
+
+int Appnostic_SC16IS752::peek()
+{
+    if (peek_flag == 0)
+    {
+        peek_buf = read();
+        if (peek_buf >= 0)
+        {
+            peek_flag = 1;
+        }
+    }
+
+    return peek_buf;
+}
+
+size_t Appnostic_SC16IS752::write(uint8_t val)
+{
+    uint8_t tmp_lsr;
+
+    do
+    {
+        tmp_lsr = readRegister(channel, SC16IS7XX_REG_LSR);
+    } while ((tmp_lsr & 0x20) == 0);
+
+    writeRegister(channel, SC16IS7XX_REG_THR, val);
+
+    return 1;
+}
+
+size_t Appnostic_SC16IS752::write(const uint8_t *buf, size_t size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        write(buf[i]);
+    }
+    return size;
+}
+
+void Appnostic_SC16IS752::flush()
+{
+    uint8_t tmp_lsr;
+
+    do
+    {
+        tmp_lsr = readRegister(channel, SC16IS7XX_REG_LSR);
+    } while ((tmp_lsr & 0x20) == 0);
+}
+
+
+
 static const byte PAYLOAD_FALSE = 0;
 static const byte PAYLOAD_NORMAL = 1;
 static const byte PAYLOAD_STRING = 2;
@@ -30,11 +503,11 @@ static const byte PAYLOAD_STRING = 2;
  ************************************************************/
 
 // Constructor for EXIO485
-EXIO485::EXIO485(uint8_t busNo, HardwareSerial &serial, unsigned long baud, int8_t txPin) {
-  _serial = &serial;
+EXIO485::EXIO485(uint8_t busNo, uint8_t i2c_addr, unsigned long baud, uint32_t xtal_freq) {
+  _i2c_addr = i2c_addr;
+  _xtal_freq = xtal_freq;
   _baud = baud;
   
-  _txPin = txPin;
   _busNo = busNo;
   _retryTime = 2000000UL; // 1 second
   bufferLength=0;
@@ -109,26 +582,24 @@ void EXIO485::_loop(unsigned long currentMicros) {
       currentTask->crcPassFail = 0;
       uint16_t response_crc = crc16((uint8_t*)currentTask->commandArray, currentTask->byteCount-1);
       
-      if (_txPin != -1) ArduinoPins::fastWriteDigital(_txPin,HIGH);
       // Send response data with CRC
-      _serial->write(0xFE);
-      _serial->write(0xFE);
-      _serial->write(response_crc >> 8);
-      _serial->write(response_crc & 0xFF);
-      _serial->write(currentTask->byteCount);
+      ExtSerialA.write(0xFE);
+      ExtSerialA.write(0xFE);
+      ExtSerialA.write(response_crc >> 8);
+      ExtSerialA.write(response_crc & 0xFF);
+      ExtSerialA.write(currentTask->byteCount);
       for (int i = 0; i < currentTask->byteCount; i++) {
-        _serial->write(currentTask->commandArray[i]);
+        ExtSerialA.write(currentTask->commandArray[i]);
       }
-      _serial->write(0xFD);
-      _serial->write(0xFD);
-      _serial->flush();
-      if (_txPin != -1) ArduinoPins::fastWriteDigital(_txPin,LOW);
+      ExtSerialA.write(0xFD);
+      ExtSerialA.write(0xFD);
+      ExtSerialA.flush();
       // delete task command after sending, for now
       currentTask->rxMode = true;
       
     } else {
-      if ( _serial->available()) {
-        int curByte = _serial->read();
+      if ( ExtSerialA.available()) {
+        int curByte = ExtSerialA.read();
         
         if (curByte == 0xFE && flagStart == false) flagStart = true;
         else if ( curByte == 0xFE && flagStart == true) {
