@@ -114,7 +114,10 @@ public:
     // registers
     void writeRegister(uint8_t reg_addr, uint8_t val);
     uint8_t readRegister(uint8_t reg_addr);
-
+    // gpio
+    virtual void pinMode(uint8_t pin, uint8_t mode);
+    virtual void digitalWrite(uint8_t pin, uint8_t state);
+    virtual uint8_t digitalRead(uint8_t pin);
     void setPortState(uint8_t state);
     uint8_t getPortState();
     void setPortMode(uint8_t mode);
@@ -680,8 +683,8 @@ struct Task {
     EXIOWRAN = 0xEA,   // Flag we're sending an analogue write (PWM)
     EXIOERR = 0xEF,     // Flag we've received an error
   };
-  static void create(uint8_t busNo, uint8_t i2c_addr, unsigned long baud=115200, uint32_t xtal_freq=147456000) {
-    new EXIO485(busNo, i2c_addr, baud, xtal_freq);
+  static void create(uint8_t busNo, uint8_t i2c_addr, uint8_t txPin=7, unsigned long baud=115200, uint32_t xtal_freq=147456000) {
+    new EXIO485(busNo, i2c_addr, txPin, baud, xtal_freq);
   }
   uint32_t _xtal_freq;
   uint8_t _i2c_addr;
@@ -722,6 +725,8 @@ struct Task {
     ExtSerialA.setCrystalFrequency(_xtal_freq);
     ExtSerialA.setBaudrate(_baud);
     ExtSerialA.setLine(8, 0, 1); // 8,n,1
+    ExtSerialA.pinMode(_txPin,OUTPUT);
+    ExtSerialA.digitalWrite(_txPin,LOW);
   
   #if defined(DIAG_IO)
     _display();
@@ -767,7 +772,7 @@ struct Task {
   }
 
 protected:
-  EXIO485(uint8_t busNo, uint8_t i2c_addr, unsigned long baud, uint32_t xtal_freq);
+  EXIO485(uint8_t busNo, uint8_t i2c_addr, uint8_t txPin, unsigned long baud, uint32_t xtal_freq);
 
 public:
   

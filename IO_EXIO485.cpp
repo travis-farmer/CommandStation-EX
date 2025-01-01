@@ -125,6 +125,71 @@ bool EXIO_SC16IS7XX::begin_i2c()
     return begin_i2c(0X90);
 }
 
+/*** GPIO **************************************************/
+
+/**
+ * @brief sets the io direction of a gpio pin
+ * @param pin 0 - 7
+ * @param mode INPUT, OUTPUT
+ */
+void EXIO_SC16IS7XX::pinMode(uint8_t pin, uint8_t mode)
+{
+    uint8_t tmp_iodir;
+
+    tmp_iodir = readRegister(SC16IS7XX_REG_IODIR << 3);
+
+    if (mode == OUTPUT)
+    {
+        tmp_iodir |= (0x01 << pin);
+    }
+    else
+    {
+        tmp_iodir &= (uint8_t) ~(0x01 << pin);
+    }
+
+    writeRegister(SC16IS7XX_REG_IODIR << 3, tmp_iodir);
+}
+
+/**
+ * @brief sets the state of the gpio pin
+ * @param pin 0 - 7
+ * @param state 0 = LOW, 1 = HIGH
+ */
+void EXIO_SC16IS7XX::digitalWrite(uint8_t pin, uint8_t state)
+{
+    uint8_t tmp_iostate;
+
+    tmp_iostate = readRegister(SC16IS7XX_REG_IOSTATE << 3);
+
+    if (state == 1)
+    {
+        tmp_iostate |= (0x01 << pin);
+    }
+    else
+    {
+        tmp_iostate &= (uint8_t) ~(0x01 << pin);
+    }
+
+    writeRegister(SC16IS7XX_REG_IOSTATE << 3, tmp_iostate);
+}
+
+/**
+ * @brief returns the state of a gpio pin
+ * @param pin 0 - 7
+ * @return 0 = LOW, 1 = HIGH
+ */
+uint8_t EXIO_SC16IS7XX::digitalRead(uint8_t pin)
+{
+    uint8_t tmp_iostate;
+
+    tmp_iostate = readRegister(SC16IS7XX_REG_IOSTATE << 3);
+
+    if ((tmp_iostate & (0x01 << pin)) == 0)
+    {
+        return 0;
+    }
+    return 1;
+}
 
 void EXIO_SC16IS7XX::setPortState(uint8_t state)
 {
@@ -503,11 +568,13 @@ static const byte PAYLOAD_STRING = 2;
  ************************************************************/
 
 // Constructor for EXIO485
-EXIO485::EXIO485(uint8_t busNo, uint8_t i2c_addr, unsigned long baud, uint32_t xtal_freq) {
+EXIO485::EXIO485(uint8_t busNo, uint8_t i2c_addr, uint8_t txPin, unsigned long baud, uint32_t xtal_freq) {
   _i2c_addr = i2c_addr;
   _xtal_freq = xtal_freq;
   _baud = baud;
-  
+  _txPin = txPin;
+  if (_txPin < 0) _txPin = 0;
+  if (_txPin > 7) _txPin = 7;
   _busNo = busNo;
   _retryTime = 2000000UL; // 1 second
   bufferLength=0;
@@ -581,7 +648,7 @@ void EXIO485::_loop(unsigned long currentMicros) {
     if (!currentTask->rxMode) {
       currentTask->crcPassFail = 0;
       uint16_t response_crc = crc16((uint8_t*)currentTask->commandArray, currentTask->byteCount-1);
-      
+      ExtSerialA.digitalWrite(_txPin,HIGH);
       // Send response data with CRC
       ExtSerialA.write(0xFE);
       ExtSerialA.write(0xFE);
@@ -594,6 +661,7 @@ void EXIO485::_loop(unsigned long currentMicros) {
       ExtSerialA.write(0xFD);
       ExtSerialA.write(0xFD);
       ExtSerialA.flush();
+      ExtSerialA.digitalWrite(_txPin,LOW);
       // delete task command after sending, for now
       currentTask->rxMode = true;
       
