@@ -1,6 +1,6 @@
 /*
  *  © 2024, Travis Farmer. All rights reserved.
- *  © 2024, https://github.com/appnostic-io/Appnostic_SC16IS7XX_Arduino_Library
+ *  © 2024, https://github.com/appnostic-io/EXIO_SC16IS7XX_Arduino_Library
  * 
  *  This file is part of DCC++EX API
  *
@@ -21,7 +21,7 @@
 #include "IO_EXIO485.h"
 #include "defines.h"
 
-bool Appnostic_SC16IS7XX::_initialized = false;
+bool EXIO_SC16IS7XX::_initialized = false;
 
 /*** REGISTERS *****************************************************/
 
@@ -31,7 +31,7 @@ bool Appnostic_SC16IS7XX::_initialized = false;
  * @param reg_addr
  * @param val
  */
-void Appnostic_SC16IS7XX::writeRegister(uint8_t reg_addr, uint8_t val)
+void EXIO_SC16IS7XX::writeRegister(uint8_t reg_addr, uint8_t val)
 {
   uint8_t buf[] = {reg_addr, val};
   I2CManager.write(device_address,buf,2);
@@ -43,7 +43,7 @@ void Appnostic_SC16IS7XX::writeRegister(uint8_t reg_addr, uint8_t val)
  * @param reg_addr
  * @return
  */
-uint8_t Appnostic_SC16IS7XX::readRegister(uint8_t reg_addr)
+uint8_t EXIO_SC16IS7XX::readRegister(uint8_t reg_addr)
 {
   uint8_t write_buf[1] = {reg_addr};
   uint8_t read_buf[1];
@@ -59,7 +59,7 @@ uint8_t Appnostic_SC16IS7XX::readRegister(uint8_t reg_addr)
  * @note not normally called for nos8007. defaults to 147456000 (Hz)
  * @param frequency
  */
-void Appnostic_SC16IS7XX::setCrystalFrequency(uint32_t frequency)
+void EXIO_SC16IS7XX::setCrystalFrequency(uint32_t frequency)
 {
     crystal_frequency = frequency;
 }
@@ -68,7 +68,7 @@ void Appnostic_SC16IS7XX::setCrystalFrequency(uint32_t frequency)
  * @brief gets the xtal frequency in hertz.
  * @return
  */
-uint32_t Appnostic_SC16IS7XX::getCrystalFrequency()
+uint32_t EXIO_SC16IS7XX::getCrystalFrequency()
 {
     return crystal_frequency;
 }
@@ -78,7 +78,7 @@ uint32_t Appnostic_SC16IS7XX::getCrystalFrequency()
 /**
  * @brief derived function to reset the device
  */
-void Appnostic_SC16IS7XX::resetDevice()
+void EXIO_SC16IS7XX::resetDevice()
 {
     uint8_t reg;
 
@@ -94,7 +94,7 @@ void Appnostic_SC16IS7XX::resetDevice()
  * @param addr
  * @return
  */
-bool Appnostic_SC16IS7XX::begin_i2c(uint8_t addr)
+bool EXIO_SC16IS7XX::begin_i2c(uint8_t addr)
 {
 
     if ((addr >= 0x48) && (addr <= 0x57))
@@ -120,33 +120,33 @@ bool Appnostic_SC16IS7XX::begin_i2c(uint8_t addr)
  * @brief shorthand method to start i2c as nos8007 default address
  * @return
  */
-bool Appnostic_SC16IS7XX::begin_i2c()
+bool EXIO_SC16IS7XX::begin_i2c()
 {
     return begin_i2c(0X90);
 }
 
 
-void Appnostic_SC16IS7XX::setPortState(uint8_t state)
+void EXIO_SC16IS7XX::setPortState(uint8_t state)
 {
     writeRegister(SC16IS7XX_REG_IOSTATE << 3, state);
 }
 
-uint8_t Appnostic_SC16IS7XX::getPortState()
+uint8_t EXIO_SC16IS7XX::getPortState()
 {
     return readRegister(SC16IS7XX_REG_IOSTATE << 3);
 }
 
-void Appnostic_SC16IS7XX::setPortMode(uint8_t mode)
+void EXIO_SC16IS7XX::setPortMode(uint8_t mode)
 {
     writeRegister(SC16IS7XX_REG_IODIR << 3, mode);
 }
 
-uint8_t Appnostic_SC16IS7XX::getPortMode()
+uint8_t EXIO_SC16IS7XX::getPortMode()
 {
     return readRegister(SC16IS7XX_REG_IODIR << 3);
 }
 
-void Appnostic_SC16IS7XX::setGPIOLatch(bool enabled)
+void EXIO_SC16IS7XX::setGPIOLatch(bool enabled)
 {
     uint8_t tmp_iocontrol;
 
@@ -166,36 +166,36 @@ void Appnostic_SC16IS7XX::setGPIOLatch(bool enabled)
  * @brief constructor for SC16IS752
  * @param channel
  */
-Appnostic_SC16IS752::Appnostic_SC16IS752(uint8_t channel)
+EXIO_SC16IS752::EXIO_SC16IS752(uint8_t channel)
 {
-    Appnostic_SC16IS752::channel = channel;
-    Appnostic_SC16IS752::peek_flag = 0;
+    EXIO_SC16IS752::channel = channel;
+    EXIO_SC16IS752::peek_flag = 0;
 }
 
 /**
  * @brief   slight modification of the register write function to
  *          allow for the separate channels of the SC16IS752
- * @note    uses Appnostic_SC16IS7XX::writeRegister
+ * @note    uses EXIO_SC16IS7XX::writeRegister
  * @param channel 0 or 1
  * @param reg_addr
  * @param val
  */
-void Appnostic_SC16IS752::writeRegister(uint8_t channel, uint8_t reg_addr, uint8_t val)
+void EXIO_SC16IS752::writeRegister(uint8_t channel, uint8_t reg_addr, uint8_t val)
 {
-    Appnostic_SC16IS7XX::writeRegister((reg_addr << 3 | channel << 1), val);
+    EXIO_SC16IS7XX::writeRegister((reg_addr << 3 | channel << 1), val);
 }
 
 /**
  * @brief   slight modification of the register read function to
  *          allow for the separate channels of the SC16IS752
- * @note    uses Appnostic_SC16IS7XX::readRegister
+ * @note    uses EXIO_SC16IS7XX::readRegister
  * @param channel
  * @param reg_addr
  * @return
  */
-uint8_t Appnostic_SC16IS752::readRegister(uint8_t channel, uint8_t reg_addr)
+uint8_t EXIO_SC16IS752::readRegister(uint8_t channel, uint8_t reg_addr)
 {
-    return Appnostic_SC16IS7XX::readRegister((reg_addr << 3 | channel << 1));
+    return EXIO_SC16IS7XX::readRegister((reg_addr << 3 | channel << 1));
 }
 
 /*** DERIVED FUNCTIONS **********************************************/
@@ -204,7 +204,7 @@ uint8_t Appnostic_SC16IS752::readRegister(uint8_t channel, uint8_t reg_addr)
  * @brief tests the device to check if it is online
  * @return
  */
-bool Appnostic_SC16IS752::ping()
+bool EXIO_SC16IS752::ping()
 {
     writeRegister(SC16IS752_CHANNEL_A, SC16IS7XX_REG_SPR, 0x55);
 
@@ -243,7 +243,7 @@ bool Appnostic_SC16IS752::ping()
  * @brief enables fifo buffer
  * @param enabled
  */
-void Appnostic_SC16IS752::setFIFO(bool enabled)
+void EXIO_SC16IS752::setFIFO(bool enabled)
 {
     settings.fifo = enabled;
 
@@ -267,7 +267,7 @@ void Appnostic_SC16IS752::setFIFO(bool enabled)
  * @brief resets tx or rx fifo buffer
  * @param rx
  */
-void Appnostic_SC16IS752::resetFIFO(bool rx)
+void EXIO_SC16IS752::resetFIFO(bool rx)
 {
     uint8_t tmp_fcr;
 
@@ -284,7 +284,7 @@ void Appnostic_SC16IS752::resetFIFO(bool rx)
     writeRegister(channel, SC16IS7XX_REG_FCR, tmp_fcr);
 }
 
-void Appnostic_SC16IS752::setFIFOTriggerLevel(bool rx, uint8_t length)
+void EXIO_SC16IS752::setFIFOTriggerLevel(bool rx, uint8_t length)
 {
     uint8_t tmp_reg;
 
@@ -309,7 +309,7 @@ void Appnostic_SC16IS752::setFIFOTriggerLevel(bool rx, uint8_t length)
  * @brief sets the baud rate. nos8007 has been tested to 921600
  * @param baudRate
  */
-void Appnostic_SC16IS752::setBaudrate(uint32_t baudRate)
+void EXIO_SC16IS752::setBaudrate(uint32_t baudRate)
 {
     settings.baud = baudRate;
 
@@ -347,7 +347,7 @@ void Appnostic_SC16IS752::setBaudrate(uint32_t baudRate)
  * @param parity
  * @param stopBits
  */
-void Appnostic_SC16IS752::setLine(uint8_t bits, uint8_t parity, uint8_t stopBits)
+void EXIO_SC16IS752::setLine(uint8_t bits, uint8_t parity, uint8_t stopBits)
 {
     uint8_t tmp_lcr;
 
@@ -406,7 +406,7 @@ void Appnostic_SC16IS752::setLine(uint8_t bits, uint8_t parity, uint8_t stopBits
     writeRegister(channel, SC16IS7XX_REG_LCR, tmp_lcr);
 }
 
-uint8_t Appnostic_SC16IS752::FIFOAvailableData()
+uint8_t EXIO_SC16IS752::FIFOAvailableData()
 {
     if (fifo_available == 0)
     {
@@ -415,12 +415,12 @@ uint8_t Appnostic_SC16IS752::FIFOAvailableData()
     return fifo_available;
 }
 
-uint8_t Appnostic_SC16IS752::FIFOAvailableSpace()
+uint8_t EXIO_SC16IS752::FIFOAvailableSpace()
 {
     return readRegister(channel, SC16IS7XX_REG_TXLVL);
 }
 
-int Appnostic_SC16IS752::read()
+int EXIO_SC16IS752::read()
 {
     volatile uint8_t val;
 
@@ -439,12 +439,12 @@ int Appnostic_SC16IS752::read()
     }
 }
 
-int Appnostic_SC16IS752::available()
+int EXIO_SC16IS752::available()
 {
     return readRegister(channel, SC16IS7XX_REG_RXLVL);
 }
 
-int Appnostic_SC16IS752::peek()
+int EXIO_SC16IS752::peek()
 {
     if (peek_flag == 0)
     {
@@ -458,7 +458,7 @@ int Appnostic_SC16IS752::peek()
     return peek_buf;
 }
 
-size_t Appnostic_SC16IS752::write(uint8_t val)
+size_t EXIO_SC16IS752::write(uint8_t val)
 {
     uint8_t tmp_lsr;
 
@@ -472,7 +472,7 @@ size_t Appnostic_SC16IS752::write(uint8_t val)
     return 1;
 }
 
-size_t Appnostic_SC16IS752::write(const uint8_t *buf, size_t size)
+size_t EXIO_SC16IS752::write(const uint8_t *buf, size_t size)
 {
     for (int i = 0; i < size; i++)
     {
@@ -481,7 +481,7 @@ size_t Appnostic_SC16IS752::write(const uint8_t *buf, size_t size)
     return size;
 }
 
-void Appnostic_SC16IS752::flush()
+void EXIO_SC16IS752::flush()
 {
     uint8_t tmp_lsr;
 

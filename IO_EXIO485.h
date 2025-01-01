@@ -1,6 +1,6 @@
 /*
 *  © 2024, Travis Farmer. All rights reserved.
-*  © 2024, https://github.com/appnostic-io/Appnostic_SC16IS7XX_Arduino_Library
+*  © 2024, https://github.com/appnostic-io/EXIO_SC16IS7XX_Arduino_Library
 *   
 *  This file is part of DCC++EX API
 *
@@ -47,7 +47,7 @@
 #define SC16IS7XX_ADDRESS_DC 0XAC
 #define SC16IS7XX_ADDRESS_DD 0XAE*/
 
-class Appnostic_SC16IS7XX : public Stream {
+class EXIO_SC16IS7XX : public Stream {
 private:
     uint8_t device_address = 0X90;
     uint32_t crystal_frequency = 14745600UL;
@@ -61,8 +61,8 @@ protected:
 
 public:
     // constructor
-    Appnostic_SC16IS7XX() {};
-    ~Appnostic_SC16IS7XX() {};
+    EXIO_SC16IS7XX() {};
+    ~EXIO_SC16IS7XX() {};
     enum {
     SC16IS7XX_REG_RHR = 0x00,
     SC16IS7XX_REG_THR = 0X00,
@@ -135,7 +135,7 @@ typedef struct
     uint8_t stopBits = 1;
 } uart_settings_t;
 
-class Appnostic_SC16IS752 : public Appnostic_SC16IS7XX
+class EXIO_SC16IS752 : public EXIO_SC16IS7XX
 {
 private:
     uart_settings_t settings;
@@ -148,7 +148,7 @@ private:
     uint8_t FIFOAvailableSpace();
 
 public:
-    Appnostic_SC16IS752(uint8_t channel=0X00);
+    EXIO_SC16IS752(uint8_t channel=0X00);
 
     // reading and writing from registers
     void writeRegister(uint8_t channel, uint8_t reg_addr, uint8_t val);
@@ -175,7 +175,7 @@ public:
     void flush();
 };
 
-//extern Appnostic_SC16IS752 ExtSerial;
+//extern EXIO_SC16IS752 ExtSerial;
 
 /*
  * EXIO485
@@ -685,7 +685,7 @@ struct Task {
   }
   uint32_t _xtal_freq;
   uint8_t _i2c_addr;
-  Appnostic_SC16IS752 ExtSerialA;
+  EXIO_SC16IS752 ExtSerialA;
   //HardwareSerial* _serial;
   int _CommMode = 0;
   int _opperation = 0;
