@@ -683,7 +683,7 @@ struct Task {
     EXIOWRAN = 0xEA,   // Flag we're sending an analogue write (PWM)
     EXIOERR = 0xEF,     // Flag we've received an error
   };
-  static void create(uint8_t busNo, uint8_t i2c_addr, uint8_t txPin=7, unsigned long baud=115200UL, uint32_t xtal_freq=14745600UL) {
+  static void create(uint8_t busNo, uint8_t i2c_addr=0x90, uint8_t txPin=7, unsigned long baud=115200UL, uint32_t xtal_freq=14745600UL) {
     new EXIO485(busNo, i2c_addr, txPin, baud, xtal_freq);
   }
   uint32_t _xtal_freq;
