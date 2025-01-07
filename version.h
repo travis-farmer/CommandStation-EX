@@ -3,7 +3,11 @@
 
 #include "StringFormatter.h"
 
-#define VERSION "5.2.91"
+#define VERSION "5.2.95"
+// 5.2.95 - Release candidate for 5.4
+// 5.2.94 - Bugfix: Less confusion and simpler code around the RCN213 defines
+// 5.2.93 - Bugfix ESP32: clear progTrackSyncMain (join flag) when prog track is removed
+// 5.2.92 - Bugfix: FADE power off fix, EXRAIL power diagnostic fix.
 // 5.2.91 - Bugfix: Neopixel I2C overlap check
 // 5.2.90 - Bugfix: EXRAIL EXTT_TURNTABLE() now has description as optional in line with ocumentation (also fixed DCC_TURNTABLE) 
 // 5.2.89 - EXRAIL SET(vpin[,npins]) RESET(vpin,[,npins]) pin range manipulation 
