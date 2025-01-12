@@ -607,11 +607,6 @@ void AFRT7seg::_loop(unsigned long currentMicros) {
 
   // Display device driver info.
   void AFRT7seg::_display()  {
-    auto tstamp=getTime();
-    byte ss=tstamp%60;
-    tstamp/=60;
-    byte mm=tstamp%60;
-    byte hh=tstamp/60;
     DIAG(F("Adafruit 7-segment backpack on I2C:%s %S"), 
       _I2CAddress.toString(),
      (_deviceState==DEVSTATE_FAILED) ? F("OFFLINE") : F(""));

@@ -28,63 +28,11 @@
 */
 
 #ifndef IO_AFRT7SEG_h
-#define IO_AFRT&SEG_h
+#define IO_AFRT7SEG_h
 
 
 #include "IODevice.h"
 
-#define LED_ON 1  ///< GFX color of lit LED segments (single-color displays)
-#define LED_OFF 0 ///< GFX color of unlit LED segments (single-color displays)
-
-#define LED_RED 1    ///< GFX color for red LED segments (bi-color displays)
-#define LED_YELLOW 2 ///< GFX color for yellow LED segments (bi-color displays)
-#define LED_GREEN 3  ///< GFX color for green LED segments (bi-color displays)
-
-#define HT16K33_BLINK_CMD 0x80       ///< I2C register for BLINK setting
-#define HT16K33_BLINK_DISPLAYON 0x01 ///< I2C value for steady on
-#define HT16K33_BLINK_OFF 0          ///< I2C value for steady off
-#define HT16K33_BLINK_2HZ 1          ///< I2C value for 2 Hz blink
-#define HT16K33_BLINK_1HZ 2          ///< I2C value for 1 Hz blink
-#define HT16K33_BLINK_HALFHZ 3       ///< I2C value for 0.5 Hz blink
-
-#define HT16K33_CMD_BRIGHTNESS 0xE0 ///< I2C register for BRIGHTNESS setting
-
-#define SEVENSEG_DIGITS 5 ///< # Digits in 7-seg displays, plus NUL end
-
-/*
-Segment names for 14-segment alphanumeric displays.
-See https://learn.adafruit.com/14-segment-alpha-numeric-led-featherwing/usage
-
-    -------A-------
-    |\     |     /|
-    | \    J    / |
-    |   H  |  K   |
-    F    \ | /    B
-    |     \|/     |
-    |--G1--|--G2--|
-    |     /|\     |
-    E    / | \    C
-    |   L  |   N  |
-    | /    M    \ |
-    |/     |     \|
-    -------D-------  DP
-*/
-
-#define ALPHANUM_SEG_A 0b0000000000000001  ///< Alphanumeric segment A
-#define ALPHANUM_SEG_B 0b0000000000000010  ///< Alphanumeric segment B
-#define ALPHANUM_SEG_C 0b0000000000000100  ///< Alphanumeric segment C
-#define ALPHANUM_SEG_D 0b0000000000001000  ///< Alphanumeric segment D
-#define ALPHANUM_SEG_E 0b0000000000010000  ///< Alphanumeric segment E
-#define ALPHANUM_SEG_F 0b0000000000100000  ///< Alphanumeric segment F
-#define ALPHANUM_SEG_G1 0b0000000001000000 ///< Alphanumeric segment G1
-#define ALPHANUM_SEG_G2 0b0000000010000000 ///< Alphanumeric segment G2
-#define ALPHANUM_SEG_H 0b0000000100000000  ///< Alphanumeric segment H
-#define ALPHANUM_SEG_J 0b0000001000000000  ///< Alphanumeric segment J
-#define ALPHANUM_SEG_K 0b0000010000000000  ///< Alphanumeric segment K
-#define ALPHANUM_SEG_L 0b0000100000000000  ///< Alphanumeric segment L
-#define ALPHANUM_SEG_M 0b0001000000000000  ///< Alphanumeric segment M
-#define ALPHANUM_SEG_N 0b0010000000000000  ///< Alphanumeric segment N
-#define ALPHANUM_SEG_DP 0b0100000000000000 ///< Alphanumeric segment DP
 
 /*!
     @brief  Class encapsulating the raw HT16K33 controller device.
@@ -92,6 +40,19 @@ See https://learn.adafruit.com/14-segment-alpha-numeric-led-featherwing/usage
 class Adafruit_LEDBackpack {
 public:
   uint8_t _address;
+static const uint8_t LED_ON = 1;  ///< GFX color of lit LED segments (single-color displays)
+static const uint8_t LED_OFF = 0; ///< GFX color of unlit LED segments (single-color displays)
+
+static const uint8_t HT16K33_BLINK_CMD = 0x80;       ///< I2C register for BLINK setting
+static const uint8_t HT16K33_BLINK_DISPLAYON = 0x01; ///< I2C value for steady on
+static const uint8_t HT16K33_BLINK_OFF = 0;          ///< I2C value for steady off
+static const uint8_t HT16K33_BLINK_2HZ = 1;          ///< I2C value for 2 Hz blink
+static const uint8_t HT16K33_BLINK_1HZ = 2;          ///< I2C value for 1 Hz blink
+static const uint8_t HT16K33_BLINK_HALFHZ = 3;       ///< I2C value for 0.5 Hz blink
+
+static const uint8_t HT16K33_CMD_BRIGHTNESS = 0xE0; ///< I2C register for BRIGHTNESS setting
+
+static const uint8_t SEVENSEG_DIGITS = 5; ///< # Digits in 7-seg displays, plus NUL end
   /*!
     @brief  Constructor for HT16K33 devices.
   */
@@ -394,13 +355,10 @@ private:
   
   // Constructor
     AFRT7seg(I2CAddress i2cAddress);
-    uint32_t getTime();
     Adafruit_7segment matrix;
     void _begin() override;
     void _display() override;
     void _loop(unsigned long currentMicros) override;
-    int _readAnalogue(VPIN vpin) override;
-    void _writeAnalogue(VPIN vpin, int hh, uint8_t mm, uint16_t ss)  override;
 };
  
 #endif
